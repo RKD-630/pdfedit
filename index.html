@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Editor Pro</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="logo">
+                <i class="fas fa-file-pdf"></i>
+                <h1>PDF Editor Pro</h1>
+            </div>
+            <div class="header-actions">
+                <button id="uploadBtn" class="btn btn-primary">
+                    <i class="fas fa-upload"></i> Open PDF
+                </button>
+                <input type="file" id="fileInput" accept=".pdf" hidden>
+                <button id="saveBtn" class="btn btn-success" disabled>
+                    <i class="fas fa-save"></i> Save PDF
+                </button>
+                <button id="downloadBtn" class="btn btn-success" disabled>
+                    <i class="fas fa-download"></i> Download
+                </button>
+            </div>
+        </header>
+
+        <!-- Toolbar -->
+        <div class="toolbar" id="toolbar">
+            <!-- Font Family -->
+            <div class="toolbar-group">
+                <label>Font</label>
+                <select id="fontFamily" class="toolbar-select" title="Font Family">
+                    <option value="Arial">Arial</option>
+                    <option value="Helvetica">Helvetica</option>
+                    <option value="Times New Roman">Times New Roman</option>
+                    <option value="Courier New">Courier New</option>
+                    <option value="Georgia">Georgia</option>
+                    <option value="Verdana">Verdana</option>
+                    <option value="Comic Sans MS">Comic Sans MS</option>
+                    <option value="Impact">Impact</option>
+                    <option value="Trebuchet MS">Trebuchet MS</option>
+                    <option value="Palatino Linotype">Palatino Linotype</option>
+                    <option value="Lucida Console">Lucida Console</option>
+                    <option value="Tahoma">Tahoma</option>
+                    <option value="Garamond">Garamond</option>
+                </select>
+            </div>
+
+            <!-- Font Size -->
+            <div class="toolbar-group">
+                <label>Size</label>
+                <input type="number" id="fontSize" value="16" min="8" max="120" class="toolbar-input" title="Font Size">
+            </div>
+
+            <!-- Font Color -->
+            <div class="toolbar-group">
+                <label>Color</label>
+                <div class="color-picker-wrapper">
+                    <input type="color" id="fontColor" value="#000000" class="color-picker" title="Font Color">
+                    <span id="fontColorHex" class="color-hex">#000000</span>
+                </div>
+            </div>
+
+            <!-- Text Formatting -->
+            <div class="toolbar-group">
+                <label>Format</label>
+                <div class="format-buttons">
+                    <button id="boldBtn" class="format-btn" title="Bold">
+                        <i class="fas fa-bold"></i>
+                    </button>
+                    <button id="italicBtn" class="format-btn" title="Italic">
+                        <i class="fas fa-italic"></i>
+                    </button>
+                    <button id="underlineBtn" class="format-btn" title="Underline">
+                        <i class="fas fa-underline"></i>
+                    </button>
+                    <button id="strikeBtn" class="format-btn" title="Strikethrough">
+                        <i class="fas fa-strikethrough"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Text Alignment -->
+            <div class="toolbar-group">
+                <label>Align</label>
+                <div class="format-buttons">
+                    <button id="alignLeft" class="format-btn" title="Align Left">
+                        <i class="fas fa-align-left"></i>
+                    </button>
+                    <button id="alignCenter" class="format-btn" title="Align Center">
+                        <i class="fas fa-align-center"></i>
+                    </button>
+                    <button id="alignRight" class="format-btn" title="Align Right">
+                        <i class="fas fa-align-right"></i>
+                    </button>
+                    <button id="alignJustify" class="format-btn" title="Justify">
+                        <i class="fas fa-align-justify"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Text Tools -->
+            <div class="toolbar-group">
+                <label>Tools</label>
+                <div class="format-buttons">
+                    <button id="addTextBtn" class="format-btn" title="Add Text">
+                        <i class="fas fa-font"></i>
+                    </button>
+                    <button id="addImageBtn" class="format-btn" title="Add Image">
+                        <i class="fas fa-image"></i>
+                    </button>
+                    <button id="drawBtn" class="format-btn" title="Draw">
+                        <i class="fas fa-pencil-alt"></i>
+                    </button>
+                    <button id="highlightBtn" class="format-btn" title="Highlight">
+                        <i class="fas fa-highlighter"></i>
+                    </button>
+                    <button id="eraserBtn" class="format-btn" title="Eraser (Delete Text)">
+                        <i class="fas fa-eraser"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Highlight Color -->
+            <div class="toolbar-group" id="highlightColorGroup" style="display: none;">
+                <label>Highlight</label>
+                <div class="color-picker-wrapper">
+                    <input type="color" id="highlightColor" value="#ffff00" class="color-picker" title="Highlight Color">
+                </div>
+            </div>
+
+            <!-- Undo/Redo -->
+            <div class="toolbar-group">
+                <label>History</label>
+                <div class="format-buttons">
+                    <button id="undoBtn" class="format-btn" title="Undo" disabled>
+                        <i class="fas fa-undo"></i>
+                    </button>
+                    <button id="redoBtn" class="format-btn" title="Redo" disabled>
+                        <i class="fas fa-redo"></i>
+                    </button>
+                    <button id="deleteBtn" class="format-btn" title="Delete Selected">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Zoom Controls -->
+            <div class="toolbar-group">
+                <label>Zoom</label>
+                <div class="format-buttons">
+                    <button id="zoomOut" class="format-btn" title="Zoom Out">
+                        <i class="fas fa-minus"></i>
+                    </button>
+                    <span id="zoomLevel" class="zoom-display">100%</span>
+                    <button id="zoomIn" class="format-btn" title="Zoom In">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                    <button id="zoomFit" class="format-btn" title="Fit to Page">
+                        <i class="fas fa-expand"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Page Navigation -->
+            <div class="toolbar-group">
+                <label>Page</label>
+                <div class="page-navigation">
+                    <button id="prevPage" class="format-btn" disabled>
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <input type="number" id="currentPage" value="1" min="1" class="page-input">
+                    <span id="totalPages" class="page-display">/ 0</span>
+                    <button id="nextPage" class="format-btn" disabled>
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- PDF Viewer -->
+            <div class="pdf-container" id="pdfContainer">
+                <div class="pdf-placeholder" id="pdfPlaceholder">
+                    <i class="fas fa-file-upload"></i>
+                    <h2>Open a PDF File</h2>
+                    <p>Click "Open PDF" to upload and edit your PDF file</p>
+                    <p class="or-text">or drag and drop a PDF file here</p>
+                </div>
+                <div id="pdfViewer" class="pdf-viewer" style="display: none;"></div>
+            </div>
+        </main>
+
+        <!-- Status Bar -->
+        <footer class="status-bar">
+            <div class="status-left">
+                <span id="statusMessage">Ready</span>
+            </div>
+            <div class="status-right">
+                <span id="editMode">View Mode</span>
+                <span id="pageInfo"></span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Hidden canvas for PDF rendering -->
+    <canvas id="renderCanvas" style="display: none;"></canvas>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <script src="https://unpkg.com/downloadjs@1.4.7/download.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
