@@ -1,221 +1,198 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Editor Pro</title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-</head>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
+<meta name="theme-color" content="#1e293b">
+<title>PDF Editor</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+
+<link rel="stylesheet" href="style.css"></head>
 <body>
-    <div class="app-container">
-        <!-- Header -->
-        <header class="app-header">
-            <div class="logo">
-                <i class="fas fa-file-pdf"></i>
-                <h1>PDF Editor Pro</h1>
-            </div>
-            <div class="header-actions">
-                <button id="uploadBtn" class="btn btn-primary">
-                    <i class="fas fa-upload"></i> Open PDF
-                </button>
-                <input type="file" id="fileInput" accept=".pdf" hidden>
-                <button id="saveBtn" class="btn btn-success" disabled>
-                    <i class="fas fa-save"></i> Save PDF
-                </button>
-                <button id="downloadBtn" class="btn btn-success" disabled>
-                    <i class="fas fa-download"></i> Download
-                </button>
-            </div>
-        </header>
 
-        <!-- Toolbar -->
-        <div class="toolbar" id="toolbar">
-            <!-- Font Family -->
-            <div class="toolbar-group">
-                <label>Font</label>
-                <select id="fontFamily" class="toolbar-select" title="Font Family">
-                    <option value="Arial">Arial</option>
-                    <option value="Helvetica">Helvetica</option>
-                    <option value="Times New Roman">Times New Roman</option>
-                    <option value="Courier New">Courier New</option>
-                    <option value="Georgia">Georgia</option>
-                    <option value="Verdana">Verdana</option>
-                    <option value="Comic Sans MS">Comic Sans MS</option>
-                    <option value="Impact">Impact</option>
-                    <option value="Trebuchet MS">Trebuchet MS</option>
-                    <option value="Palatino Linotype">Palatino Linotype</option>
-                    <option value="Lucida Console">Lucida Console</option>
-                    <option value="Tahoma">Tahoma</option>
-                    <option value="Garamond">Garamond</option>
-                </select>
-            </div>
-
-            <!-- Font Size -->
-            <div class="toolbar-group">
-                <label>Size</label>
-                <input type="number" id="fontSize" value="16" min="8" max="120" class="toolbar-input" title="Font Size">
-            </div>
-
-            <!-- Font Color -->
-            <div class="toolbar-group">
-                <label>Color</label>
-                <div class="color-picker-wrapper">
-                    <input type="color" id="fontColor" value="#000000" class="color-picker" title="Font Color">
-                    <span id="fontColorHex" class="color-hex">#000000</span>
-                </div>
-            </div>
-
-            <!-- Text Formatting -->
-            <div class="toolbar-group">
-                <label>Format</label>
-                <div class="format-buttons">
-                    <button id="boldBtn" class="format-btn" title="Bold">
-                        <i class="fas fa-bold"></i>
-                    </button>
-                    <button id="italicBtn" class="format-btn" title="Italic">
-                        <i class="fas fa-italic"></i>
-                    </button>
-                    <button id="underlineBtn" class="format-btn" title="Underline">
-                        <i class="fas fa-underline"></i>
-                    </button>
-                    <button id="strikeBtn" class="format-btn" title="Strikethrough">
-                        <i class="fas fa-strikethrough"></i>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Text Alignment -->
-            <div class="toolbar-group">
-                <label>Align</label>
-                <div class="format-buttons">
-                    <button id="alignLeft" class="format-btn" title="Align Left">
-                        <i class="fas fa-align-left"></i>
-                    </button>
-                    <button id="alignCenter" class="format-btn" title="Align Center">
-                        <i class="fas fa-align-center"></i>
-                    </button>
-                    <button id="alignRight" class="format-btn" title="Align Right">
-                        <i class="fas fa-align-right"></i>
-                    </button>
-                    <button id="alignJustify" class="format-btn" title="Justify">
-                        <i class="fas fa-align-justify"></i>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Text Tools -->
-            <div class="toolbar-group">
-                <label>Tools</label>
-                <div class="format-buttons">
-                    <button id="addTextBtn" class="format-btn" title="Add Text">
-                        <i class="fas fa-font"></i>
-                    </button>
-                    <button id="addImageBtn" class="format-btn" title="Add Image">
-                        <i class="fas fa-image"></i>
-                    </button>
-                    <button id="drawBtn" class="format-btn" title="Draw">
-                        <i class="fas fa-pencil-alt"></i>
-                    </button>
-                    <button id="highlightBtn" class="format-btn" title="Highlight">
-                        <i class="fas fa-highlighter"></i>
-                    </button>
-                    <button id="eraserBtn" class="format-btn" title="Eraser (Delete Text)">
-                        <i class="fas fa-eraser"></i>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Highlight Color -->
-            <div class="toolbar-group" id="highlightColorGroup" style="display: none;">
-                <label>Highlight</label>
-                <div class="color-picker-wrapper">
-                    <input type="color" id="highlightColor" value="#ffff00" class="color-picker" title="Highlight Color">
-                </div>
-            </div>
-
-            <!-- Undo/Redo -->
-            <div class="toolbar-group">
-                <label>History</label>
-                <div class="format-buttons">
-                    <button id="undoBtn" class="format-btn" title="Undo" disabled>
-                        <i class="fas fa-undo"></i>
-                    </button>
-                    <button id="redoBtn" class="format-btn" title="Redo" disabled>
-                        <i class="fas fa-redo"></i>
-                    </button>
-                    <button id="deleteBtn" class="format-btn" title="Delete Selected">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Zoom Controls -->
-            <div class="toolbar-group">
-                <label>Zoom</label>
-                <div class="format-buttons">
-                    <button id="zoomOut" class="format-btn" title="Zoom Out">
-                        <i class="fas fa-minus"></i>
-                    </button>
-                    <span id="zoomLevel" class="zoom-display">100%</span>
-                    <button id="zoomIn" class="format-btn" title="Zoom In">
-                        <i class="fas fa-plus"></i>
-                    </button>
-                    <button id="zoomFit" class="format-btn" title="Fit to Page">
-                        <i class="fas fa-expand"></i>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Page Navigation -->
-            <div class="toolbar-group">
-                <label>Page</label>
-                <div class="page-navigation">
-                    <button id="prevPage" class="format-btn" disabled>
-                        <i class="fas fa-chevron-left"></i>
-                    </button>
-                    <input type="number" id="currentPage" value="1" min="1" class="page-input">
-                    <span id="totalPages" class="page-display">/ 0</span>
-                    <button id="nextPage" class="format-btn" disabled>
-                        <i class="fas fa-chevron-right"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Main Content -->
-        <main class="main-content">
-            <!-- PDF Viewer -->
-            <div class="pdf-container" id="pdfContainer">
-                <div class="pdf-placeholder" id="pdfPlaceholder">
-                    <i class="fas fa-file-upload"></i>
-                    <h2>Open a PDF File</h2>
-                    <p>Click "Open PDF" to upload and edit your PDF file</p>
-                    <p class="or-text">or drag and drop a PDF file here</p>
-                </div>
-                <div id="pdfViewer" class="pdf-viewer" style="display: none;"></div>
-            </div>
-        </main>
-
-        <!-- Status Bar -->
-        <footer class="status-bar">
-            <div class="status-left">
-                <span id="statusMessage">Ready</span>
-            </div>
-            <div class="status-right">
-                <span id="editMode">View Mode</span>
-                <span id="pageInfo"></span>
-            </div>
-        </footer>
+<div id="homeScreen">
+  <div class="home-header">
+    <div class="logo"><div class="logo-icon">P</div><span>PDF Editor</span></div>
+    <div class="home-actions">
+      <button class="icon-btn" id="helpBtn" aria-label="Help" title="Help">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+      </button>
+      <button class="icon-btn" id="settingsBtn" aria-label="Settings" title="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+      </button>
     </div>
+  </div>
+  <div class="home-main">
+    <h1 class="home-title">Edit PDFs in your browser</h1>
+    <p class="home-subtitle">Edit text, draw, highlight, add page numbers. Everything runs locally — your files never leave your device.</p>
+    <div class="import-card" id="importCard">
+      <div class="import-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+      </div>
+      <h2 class="import-title">Import PDF</h2>
+      <p class="import-sub">Tap to choose a file, or drag &amp; drop here</p>
+      <button class="import-btn" id="importBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+        Choose PDF File
+      </button>
+      <div class="import-secondary">or <button id="blankBtn">create a blank PDF</button></div>
+      <input type="file" id="fileInput" accept=".pdf,application/pdf" style="display:none">
+    </div>
+  </div>
+  <div class="home-footer">
+    <div class="privacy-badge">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+      Your PDF is processed locally in your browser. Nothing is uploaded.
+    </div>
+  </div>
+</div>
 
-    <!-- Hidden canvas for PDF rendering -->
-    <canvas id="renderCanvas" style="display: none;"></canvas>
+<div id="editorScreen">
+  <div class="top-toolbar" id="topToolbar">
+    <button class="tool-btn" id="backBtn" title="Back to home" aria-label="Back">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+    </button>
+    <button class="tool-btn" id="pagesBtn" title="Pages" aria-label="Pages">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+      <span class="tool-label">Pages</span>
+    </button>
+    <div class="tool-divider"></div>
+    <button class="tool-btn" data-tool="select" title="Select / Drag to capture text">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"></path></svg>
+      <span class="tool-label">Select</span>
+    </button>
+    <button class="tool-btn" data-tool="edit" title="Edit text">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+      <span class="tool-label">Edit</span>
+    </button>
+    <button class="tool-btn" data-tool="text" title="Add text (click, drag, or double-click)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"></polyline><line x1="9" y1="20" x2="15" y2="20"></line><line x1="12" y1="4" x2="12" y2="20"></line></svg>
+      <span class="tool-label">Text</span>
+    </button>
+    <button class="tool-btn" data-tool="highlight" title="Highlight">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l-4 4 4 4"></path><path d="M15 11l4 4-4 4"></path><path d="M20 5l-6 6"></path><path d="M10 19l4-4"></path></svg>
+      <span class="tool-label">Highlight</span>
+    </button>
+    <button class="tool-btn" data-tool="pencil" title="Pencil">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+      <span class="tool-label">Pencil</span>
+    </button>
+    <button class="tool-btn" data-tool="eraser" title="Eraser">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 20H7L3 16a1 1 0 0 1 0-1.41l9.59-9.59a2 2 0 0 1 2.82 0L21 10.59a2 2 0 0 1 0 2.82L13 21"></path></svg>
+      <span class="tool-label">Eraser</span>
+    </button>
+    <div class="tool-divider"></div>
+    <button class="tool-btn" id="pageNumBtn" title="Page numbers">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="9" y1="13" x2="15" y2="13"></line><line x1="9" y1="17" x2="13" y2="17"></line></svg>
+      <span class="tool-label">Page #</span>
+    </button>
+    <button class="tool-btn" id="prevPageBtnTop" title="Previous page" aria-label="Previous page">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+    </button>
+    <button class="tool-btn" id="nextPageBtnTop" title="Next page" aria-label="Next page">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+    </button>
+    <div class="tool-spacer"></div>
+    <button class="tool-btn" id="undoBtn" title="Undo (Ctrl+Z)" aria-label="Undo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"></path><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path></svg>
+    </button>
+    <button class="tool-btn" id="redoBtn" title="Redo (Ctrl+Shift+Z)" aria-label="Redo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 7v6h-6"></path><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"></path></svg>
+    </button>
+    <div class="tool-divider"></div>
+    <button class="tool-btn" id="zoomOutBtn" title="Zoom out" aria-label="Zoom out">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>
+    </button>
+    <span id="zoomLabel" style="color:#cbd5e1;font-size:12px;min-width:40px;text-align:center;">100%</span>
+    <button class="tool-btn" id="zoomInBtn" title="Zoom in" aria-label="Zoom in">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>
+    </button>
+    <div class="tool-divider"></div>
+    <button class="tool-btn" id="saveBtn" title="Save PDF (Ctrl+S)" aria-label="Save">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+      <span class="tool-label">Save</span>
+    </button>
+  </div>
 
-    <!-- Scripts -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
-    <script src="https://unpkg.com/downloadjs@1.4.7/download.min.js"></script>
-    <script src="script.js"></script>
-</body>
-</html>
+  <div class="secondary-toolbar" id="secondaryToolbar"></div>
+
+  <div class="workspace">
+    <aside class="sidebar-left" id="sidebarLeft"><div id="thumbList"></div></aside>
+    <main class="pdf-view" id="pdfView">
+      <div class="pdf-view-inner" id="pdfViewInner">
+        <div class="pdf-canvas-wrap" id="pdfCanvasWrap">
+          <canvas id="pdfCanvas"></canvas>
+          <div id="textLayer"></div>
+          <canvas id="annotationCanvas"></canvas>
+          <div id="textEditActions">
+            <button id="editSelectedTextBtn" title="Edit text">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+            </button>
+            <button id="deleteSelectedTextBtn" title="Delete text">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path></svg>
+            </button>
+          </div>
+          <div id="fontDetectBadge"><span class="badge-dot"></span><span id="fontDetectText">Detected: —</span></div>
+        </div>
+      </div>
+    </main>
+    <aside class="sidebar-right" id="sidebarRight">
+      <div id="propsPanel">
+        <div class="prop-section">
+          <div class="prop-title">Tool</div>
+          <div style="font-size:13px;color:var(--muted);">Select a tool to begin.</div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="status-bar">
+    <div class="status-left" id="statusLeft"></div>
+    <div class="page-nav">
+      <button id="prevPageBtn" aria-label="Previous page">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+      </button>
+      <span id="pageLabel">Page 1 of 1</span>
+      <button id="nextPageBtn" aria-label="Next page">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+      </button>
+    </div>
+    <div id="statusMsg">Ready</div>
+  </div>
+</div>
+
+<div class="drawer-backdrop" id="drawerBackdrop"></div>
+<aside class="drawer" id="drawer">
+  <div class="drawer-header">
+    <strong>Pages</strong>
+    <button class="icon-btn" id="drawerCloseBtn" aria-label="Close" style="background:#f1f5f9;color:var(--text);">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+    </button>
+  </div>
+  <div class="drawer-body" id="drawerThumbList"></div>
+</aside>
+
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal" id="modal">
+    <div class="modal-header">
+      <h3 class="modal-title" id="modalTitle">Dialog</h3>
+      <button class="icon-btn" id="modalCloseBtn" aria-label="Close" style="background:#f1f5f9;color:var(--text);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer" id="modalFooter"></div>
+  </div>
+</div>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loadingText">Processing…</div>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+
+
+<script src="script.js"></script></body></html>
