@@ -1,196 +1,118 @@
 <!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
-<meta name="theme-color" content="#1e293b">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=5.0,user-scalable=yes">
+<meta name="theme-color" content="#ffffff">
 <title>PDF Editor</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;700&amp;family=Noto+Serif+Devanagari:wght@400;700&amp;family=Noto+Sans:wght@400;700&amp;family=Noto+Serif:wght@400;700&amp;family=Poppins:wght@400;700&amp;family=Hind:wght@400;700&amp;family=Roboto:wght@400;700&amp;family=Open+Sans:wght@400;700&amp;family=Lato:wght@400;700&amp;family=Inter:wght@400;700&amp;family=Lohit+Devanagari&amp;family=Tiro+Devanagari+Hindi&amp;family=Noto+Sans+Tamil:wght@400;700&amp;family=Noto+Sans+Bengali:wght@400;700&amp;family=Noto+Sans+Gujarati:wght@400;700&amp;family=Noto+Sans+Gurmukhi:wght@400;700&amp;family=Noto+Sans+Kannada:wght@400;700&amp;family=Noto+Sans+Malayalam:wght@400;700&amp;family=Noto+Sans+Telugu:wght@400;700&amp;display=swap" rel="stylesheet">
 
 <link rel="stylesheet" href="style.css"></head>
 <body>
 
-<div id="homeScreen">
-  <div class="home-header">
-    <div class="logo"><div class="logo-icon">P</div><span>PDF Editor</span></div>
-    <div class="home-actions">
-      <button class="icon-btn" id="helpBtn" aria-label="Help" title="Help">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-      </button>
-      <button class="icon-btn" id="settingsBtn" aria-label="Settings" title="Settings">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-      </button>
-    </div>
-  </div>
-  <div class="home-main">
-    <h1 class="home-title">Edit PDFs in your browser</h1>
-    <p class="home-subtitle">Edit text, draw, highlight, add page numbers. Everything runs locally — your files never leave your device.</p>
-    <div class="import-card" id="importCard">
-      <div class="import-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-      </div>
-      <h2 class="import-title">Import PDF</h2>
-      <p class="import-sub">Tap to choose a file, or drag &amp; drop here</p>
-      <button class="import-btn" id="importBtn">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-        Choose PDF File
-      </button>
-      <div class="import-secondary">or <button id="blankBtn">create a blank PDF</button></div>
-      <input type="file" id="fileInput" accept=".pdf,application/pdf" style="display:none">
-    </div>
-  </div>
-  <div class="home-footer">
-    <div class="privacy-badge">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-      Your PDF is processed locally in your browser. Nothing is uploaded.
-    </div>
-  </div>
+<header class="topbar" role="toolbar" aria-label="Main toolbar">
+  <div class="brand">📄 PDF Editor</div>
+  <button id="bImp" class="ib" title="Import PDF" aria-label="Import PDF"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg></button>
+  <input id="fIn" type="file" accept="application/pdf" hidden="">
+  <div class="sp"></div>
+  <span id="pInf" class="text-sm text-slate-500 hidden md:inline pr-2"></span>
+  <button id="bZO" class="ib" title="Zoom out" aria-label="Zoom out"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg></button>
+  <span id="zLb" class="text-sm text-slate-600 min-w-[52px] text-center">125%</span>
+  <button id="bZI" class="ib" title="Zoom in" aria-label="Zoom in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg></button>
+  <button id="bFW" class="ib" title="Fit width" aria-label="Fit width"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16"></rect><line x1="9" y1="4" x2="9" y2="20"></line><line x1="15" y1="4" x2="15" y2="20"></line></svg></button>
+  <button id="bSav" class="ib" title="Save PDF" aria-label="Save PDF" style="background:var(--ac);color:#fff"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg></button>
+</header>
+
+<div class="fontbar" role="toolbar" aria-label="Font family tools">
+  <label for="fontTop">Font</label>
+  <select id="fontTop" aria-label="Font family"></select>
+  <label for="fontSizeTop">Size</label>
+  <input id="fontSizeTop" type="number" min="6" max="200" value="16" aria-label="Font size">
+  <button class="ib" id="fontBoldTop" title="Bold" aria-label="Bold"><b>B</b></button>
+  <button class="ib" id="fontItalicTop" title="Italic" aria-label="Italic"><i>I</i></button>
+  <div class="cpw" title="Font color"><span id="fontColorTopSwatch" style="width:18px;height:18px;border-radius:4px;background:#000;display:block;border:1px solid var(--brd)"></span><input id="fontColorTop" type="color" value="#000000" aria-label="Font color"></div>
 </div>
 
-<div id="editorScreen">
-  <div class="top-toolbar" id="topToolbar">
-    <button class="tool-btn" id="backBtn" title="Back to home" aria-label="Back">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-    </button>
-    <button class="tool-btn" id="pagesBtn" title="Pages" aria-label="Pages">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-      <span class="tool-label">Pages</span>
-    </button>
-    <div class="tool-divider"></div>
-    <button class="tool-btn" data-tool="select" title="Select / Drag to capture text">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"></path></svg>
-      <span class="tool-label">Select</span>
-    </button>
-    <button class="tool-btn" data-tool="edit" title="Edit text">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
-      <span class="tool-label">Edit</span>
-    </button>
-    <button class="tool-btn" data-tool="text" title="Add text (click, drag, or double-click)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"></polyline><line x1="9" y1="20" x2="15" y2="20"></line><line x1="12" y1="4" x2="12" y2="20"></line></svg>
-      <span class="tool-label">Text</span>
-    </button>
-    <button class="tool-btn" data-tool="highlight" title="Highlight">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l-4 4 4 4"></path><path d="M15 11l4 4-4 4"></path><path d="M20 5l-6 6"></path><path d="M10 19l4-4"></path></svg>
-      <span class="tool-label">Highlight</span>
-    </button>
-    <button class="tool-btn" data-tool="pencil" title="Pencil">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
-      <span class="tool-label">Pencil</span>
-    </button>
-    <button class="tool-btn" data-tool="eraser" title="Eraser">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 20H7L3 16a1 1 0 0 1 0-1.41l9.59-9.59a2 2 0 0 1 2.82 0L21 10.59a2 2 0 0 1 0 2.82L13 21"></path></svg>
-      <span class="tool-label">Eraser</span>
-    </button>
-    <div class="tool-divider"></div>
-    <button class="tool-btn" id="pageNumBtn" title="Page numbers">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="9" y1="13" x2="15" y2="13"></line><line x1="9" y1="17" x2="13" y2="17"></line></svg>
-      <span class="tool-label">Page #</span>
-    </button>
-    <button class="tool-btn" id="prevPageBtnTop" title="Previous page" aria-label="Previous page">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
-    </button>
-    <button class="tool-btn" id="nextPageBtnTop" title="Next page" aria-label="Next page">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
-    </button>
-    <div class="tool-spacer"></div>
-    <button class="tool-btn" id="undoBtn" title="Undo (Ctrl+Z)" aria-label="Undo">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"></path><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path></svg>
-    </button>
-    <button class="tool-btn" id="redoBtn" title="Redo (Ctrl+Shift+Z)" aria-label="Redo">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 7v6h-6"></path><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"></path></svg>
-    </button>
-    <div class="tool-divider"></div>
-    <button class="tool-btn" id="zoomOutBtn" title="Zoom out" aria-label="Zoom out">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>
-    </button>
-    <span id="zoomLabel" style="color:#cbd5e1;font-size:12px;min-width:40px;text-align:center;">100%</span>
-    <button class="tool-btn" id="zoomInBtn" title="Zoom in" aria-label="Zoom in">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>
-    </button>
-    <div class="tool-divider"></div>
-    <button class="tool-btn" id="saveBtn" title="Save PDF (Ctrl+S)" aria-label="Save">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
-      <span class="tool-label">Save</span>
-    </button>
-  </div>
+<nav class="tools" role="toolbar" aria-label="Editing tools">
+  <button class="ib" data-tool="text" title="Add text" aria-label="Add text"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6V4h16v2"></path><path d="M12 4v16"></path><path d="M8 20h8"></path></svg></button>
+  <button class="ib on" data-tool="select" title="Select / Add Text" aria-label="Select"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4l7 17 2-7 7-2z"></path></svg></button>
+  <button class="ib" data-tool="move" title="Move" aria-label="Move"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 9 2 12 5 15"></polyline><polyline points="9 5 12 2 15 5"></polyline><polyline points="15 19 12 22 9 19"></polyline><polyline points="19 9 22 12 19 15"></polyline><line x1="2" y1="12" x2="22" y2="12"></line><line x1="12" y1="2" x2="12" y2="22"></line></svg></button>
+  <div class="dv"></div>
+  <button class="ib" data-tool="pencil" title="Pencil" aria-label="Pencil"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></button>
+  <button class="ib" data-tool="highlight" title="Highlight" aria-label="Highlight"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l-4 4 4 4"></path><path d="M15 5l4 4-10 10H5v-4z"></path></svg></button>
+  <button class="ib" data-tool="eraser" title="Eraser" aria-label="Eraser"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20H8.5l-4.2-4.2a2 2 0 010-2.8L14.6 2.7a2 2 0 012.8 0l3.9 3.9a2 2 0 010 2.8L12 18.5"></path><line x1="18" y1="13" x2="9" y2="4"></line></svg></button>
+  <div class="dv"></div>
+  <button class="ib" id="bPN" title="Page Number" aria-label="Page Number"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="9" y1="15" x2="15" y2="15"></line><line x1="9" y1="18" x2="13" y2="18"></line></svg></button>
+  <div class="dv"></div>
+  <button class="ib" id="bUn" title="Undo (Ctrl+Z)" aria-label="Undo" disabled=""><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"></path><path d="M21 17a9 9 0 00-15-6.7L3 13"></path></svg></button>
+  <button class="ib" id="bRe" title="Redo (Ctrl+Y)" aria-label="Redo" disabled=""><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7v6h-6"></path><path d="M3 17a9 9 0 0115-6.7L21 13"></path></svg></button>
+</nav>
 
-  <div class="secondary-toolbar" id="secondaryToolbar"></div>
-
-  <div class="workspace">
-    <aside class="sidebar-left" id="sidebarLeft"><div id="thumbList"></div></aside>
-    <main class="pdf-view" id="pdfView">
-      <div class="pdf-view-inner" id="pdfViewInner">
-        <div class="pdf-canvas-wrap" id="pdfCanvasWrap">
-          <canvas id="pdfCanvas"></canvas>
-          <div id="textLayer"></div>
-          <canvas id="annotationCanvas"></canvas>
-          <div id="textEditActions">
-            <button id="editSelectedTextBtn" title="Edit text">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
-            </button>
-            <button id="deleteSelectedTextBtn" title="Delete text">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path></svg>
-            </button>
-          </div>
-          <div id="fontDetectBadge"><span class="badge-dot"></span><span id="fontDetectText">Detected: —</span></div>
+<main class="stage" id="stage">
+  <div class="stage-inner">
+    <div class="pw" id="pw" style="display:none">
+      <canvas id="pc"></canvas>
+      <div class="tl" id="tl"></div>
+      <div class="ov" id="ov"><canvas id="ac"></canvas></div>
+      <div class="cc" id="cc" style="display:none"></div>
+      <div class="eb" id="eb" style="display:none"></div>
+      <div class="hint" id="hint" style="display:none">Double-click on empty area to add text</div>
+      <div class="tt" id="tt" style="display:none" role="toolbar" aria-label="Text formatting">
+        <select id="tF" aria-label="Font family"></select>
+        <input id="tS" type="number" min="6" max="200" value="16" style="width:54px" aria-label="Font size">
+        <button class="ib" id="tB" title="Bold" aria-label="Bold"><b>B</b></button>
+        <button class="ib" id="tI" title="Italic" aria-label="Italic"><i>I</i></button>
+        <div class="cpw" title="Font color">
+          <span id="tCS" style="width:18px;height:18px;border-radius:4px;background:#000;display:block;border:1px solid rgba(255,255,255,.3)"></span>
+          <input id="tCP" type="color" value="#000000">
         </div>
+        <button class="ib" id="tH" title="Apply highlight" aria-label="Highlight"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l-4 4 4 4"></path><path d="M15 5l4 4-10 10H5v-4z"></path></svg></button>
       </div>
-    </main>
-    <aside class="sidebar-right" id="sidebarRight">
-      <div id="propsPanel">
-        <div class="prop-section">
-          <div class="prop-title">Tool</div>
-          <div style="font-size:13px;color:var(--muted);">Select a tool to begin.</div>
-        </div>
-      </div>
-    </aside>
-  </div>
-
-  <div class="status-bar">
-    <div class="status-left" id="statusLeft"></div>
-    <div class="page-nav">
-      <button id="prevPageBtn" aria-label="Previous page">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
-      </button>
-      <span id="pageLabel">Page 1 of 1</span>
-      <button id="nextPageBtn" aria-label="Next page">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
-      </button>
     </div>
-    <div id="statusMsg">Ready</div>
+    <div class="emp" id="emp">
+      <h1>Open a PDF to start editing</h1>
+      <p>Import a PDF to view, edit text, add new text anywhere, highlight, draw, erase, add page numbers, and export. Hindi (Kruti Dev) text is auto-converted to Unicode.</p>
+      <button class="bn pr" id="bImp2">Import PDF</button>
+    </div>
   </div>
+</main>
+
+<div class="page-nav" id="pn" style="display:none">
+  <button class="ib" id="bPr" aria-label="Previous page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
+  <span class="lb" id="pLb">Page 1 of 1</span>
+  <button class="ib" id="bNx" aria-label="Next page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
 </div>
 
-<div class="drawer-backdrop" id="drawerBackdrop"></div>
-<aside class="drawer" id="drawer">
-  <div class="drawer-header">
-    <strong>Pages</strong>
-    <button class="icon-btn" id="drawerCloseBtn" aria-label="Close" style="background:#f1f5f9;color:var(--text);">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-    </button>
-  </div>
-  <div class="drawer-body" id="drawerThumbList"></div>
+<aside class="props" id="pp">
+  <h3>Tool</h3><div id="pT" class="text-sm">Select</div>
+  <h3>Pencil</h3>
+  <label class="text-xs text-slate-500">Size</label><input type="range" id="psS" min="1" max="30" value="3">
+  <label class="text-xs text-slate-500 mt-2">Color</label><div class="sr" id="psC"></div>
+  <h3>Highlight</h3><div class="sr" id="hlC"></div>
+  <h3>Eraser</h3>
+  <label class="text-xs text-slate-500">Mode</label>
+  <select id="eM"><option value="circle">Circle</option><option value="rect">Rectangle</option></select>
+  <label class="text-xs text-slate-500 mt-2">Size: <span id="eSL">30</span>px</label>
+  <input type="range" id="eS" min="5" max="100" value="30">
 </aside>
 
-<div class="modal-backdrop" id="modalBackdrop">
-  <div class="modal" id="modal">
-    <div class="modal-header">
-      <h3 class="modal-title" id="modalTitle">Dialog</h3>
-      <button class="icon-btn" id="modalCloseBtn" aria-label="Close" style="background:#f1f5f9;color:var(--text);">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-      </button>
-    </div>
-    <div class="modal-body" id="modalBody"></div>
-    <div class="modal-footer" id="modalFooter"></div>
+<div class="mb" id="pmM">
+  <div class="md" role="dialog" aria-labelledby="pmT">
+    <h2 id="pmT">Add Page Numbers</h2>
+    <label>Position</label>
+    <select id="pmP"><option value="header-left">Header Left</option><option value="header-center">Header Center</option><option value="header-right">Header Right</option><option value="footer-left">Footer Left</option><option value="footer-center" selected="">Footer Center</option><option value="footer-right">Footer Right</option></select>
+    <label>Format</label>
+    <select id="pmF"><option value="{n}">1</option><option value="Page {n}">Page 1</option><option value="Page {n} of {total}" selected="">Page 1 of 10</option><option value="{n} / {total}">1 / 10</option><option value="- {n} -">- 1 -</option></select>
+    <label>Header / Footer text</label><input type="text" id="pmHdrFtTxt" placeholder="Optional text, e.g. Report - Page {n}">
+    <div class="rw"><div><label>Start from</label><input type="number" id="pmS" value="1" min="1"></div><div><label>Font size</label><input type="number" id="pmFS" value="11" min="6" max="48"></div></div>
+    <label>Apply to</label>
+    <select id="pmA"><option value="all" selected="">All pages</option><option value="current">Current page</option></select>
+    <div class="ac"><button class="bn" id="pmC">Cancel</button><button class="bn pr" id="pmOk">Apply</button></div>
   </div>
 </div>
-
-<div class="loading-overlay" id="loadingOverlay">
-  <div class="spinner"></div>
-  <div class="loading-text" id="loadingText">Processing…</div>
-  <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-</div>
-
 <div class="toast" id="toast"></div>
 
 

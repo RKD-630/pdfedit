@@ -1,2349 +1,276 @@
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const $=id=>document.getElementById(id);
+const toast=m=>{const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(toast._);toast._=setTimeout(()=>t.classList.remove('show'),2200)};
 
-const KRUTI_FULL_MAP = {
-  'd':'क','D':'ख','e':'ग','E':'घ','f':'ङ','g':'च','G':'छ','h':'ज','H':'झ',
-  'i':'ट','I':'ठ','j':'ड','J':'ढ','k':'ण','l':'त','L':'थ','m':'द','M':'ध',
-  'n':'न','o':'प','O':'फ','p':'ब','P':'भ','q':'म','Q':'य','r':'र','R':'ल',
-  's':'ळ','t':'व','T':'श','u':'ष','U':'स','v':'ह',
-  'a':'ा','A':'ॉ','b':'ि','B':'ी','c':'ु','C':'ू','w':'े','W':'ै',
-  'x':'ो','X':'ौ','y':'ं','Y':'ँ','z':'ः','`':'्','~':'र्',
-  '0':'०','1':'१','2':'२','3':'३','4':'४','5':'५','6':'६','7':'७','8':'८','9':'९',
-  ']':'।','\\':'॥'
-};
+/* ===== FONT LISTS ===== */
+const UNICODE_FONTS = [
+  // English / Latin
+  'Arial','Times New Roman','Helvetica','Georgia','Verdana','Courier','Calibri',
+  'Noto Sans','Noto Serif','Poppins','Roboto','Open Sans','Lato','Inter','Hind',
+  // Devanagari (Hindi / Sanskrit / Marathi / Nepali)
+  'Noto Sans Devanagari','Noto Serif Devanagari','Lohit Devanagari','Tiro Devanagari Hindi','Mangal','Aparajita','Utsaah',
+  // Bengali
+  'Noto Sans Bengali',
+  // Tamil
+  'Noto Sans Tamil',
+  // Gujarati
+  'Noto Sans Gujarati',
+  // Gurmukhi
+  'Noto Sans Gurmukhi',
+  // Kannada
+  'Noto Sans Kannada',
+  // Malayalam
+  'Noto Sans Malayalam',
+  // Telugu
+  'Noto Sans Telugu',
+  // Legacy Kruti Dev
+  'Kruti Dev 010','Kruti Dev 014'
+];
 
-const state = {
-  pdfDoc: null, pdfBytes: null,
-  currentPage: 1, totalPages: 0, scale: 1.5,
-  tool: 'select',
-  pages: [],
-  annotations: {},
-  pageRotations: {},
-  deletedPages: new Set(),
-  history: [], historyIndex: -1,
-  selectedTextObj: null, activeTextBox: null,
-  isDrawing: false, currentStroke: null,
-  pencilColor: '#dc2626', pencilSize: 3, pencilOpacity: 1,
-  highlightColor: '#fde047', highlightOpacity: 0.4,
-  textColor: '#000000', fontFamily: 'Auto Detect',
-  fontSize: 14, bold: false, italic: false, underline: false,
-  krutiFontsLoaded: { 'Kruti Dev 010': false, 'Kruti Dev 014': false },
-  pinchState: null,
-  fileName: 'edited-document.pdf',
-  textDrag: null,
-  selectedTextEditIdx: -1,
-  isDraggingTextEdit: false,
-  dragStartPdf: null,
-  dragOrigPos: null,
-  // NEW: rectangle drag on Select tool for capturing original text
-  selectRectDrag: null
-};
+/* ===== KRUTI DEV CONVERSION ===== */
+const KM={',ksS':'ॠ',',ks':'ऋ',',kS':'ॡ','vS':'ऑ','vkS':'औ','vk':'ओ','Bk':'आ',',d':'ई',',':'इ','nq':'ऊ','n':'उ',',s':'ए',',dk':'ऐ','[kk':'खा','[k':'ख','xk':'गा','x':'ग','?kk':'घा','?':'घ','³':'ङ','pkS':'चौ','pk':'चा','p':'च','Nk':'छा','N':'छ','tk':'जा','t':'ज','>k':'झा','>':'झ','}':'ञ','Vk':'टा','V':'ट','Mk':'डा','M':'ड','<Mk':'ढा','<M':'ढ','.kk':'णा','.':'ण','rk':'ता','r':'त','Fkk':'था','F':'थ','nk':'दा','/kk':'धा','/':'ध','uk':'ना','Qk':'फा','Q':'फ','ck':'बा','c':'ब','Hkk':'भा','H':'भ','ek':'मा','e':'म',';k':'या',';':'य','jk':'रा','j':'र','yk':'ला','y':'ल','Ok':'वा','O':'व','ok':'वा','o':'व',"'k":"शा","'":"श",'"k':'षा','"':'ष','lk':'सा','l':'स','gk':'हा','g':'ह','DkS':'कृ','Dk':'क','kkS':'ौ','kk':'ा','h':'ी','S':'्','W':'ँ','a':'ं','f':'ि','q':'ु','w':'ू','s':'े','ks':'ो','B':'अ','%':'०','`':'१','d':'२','n':'३','p':'४','i':'५','t':'६','l':'७','g':'८','c':'९','È':'़','••':'॥','•':'।','·':'ॐ'};
+const KM14=Object.assign({},KM);
 
-const $ = id => document.getElementById(id);
-const homeScreen = $('homeScreen');
-const editorScreen = $('editorScreen');
-const fileInput = $('fileInput');
-const importCard = $('importCard');
-const pdfCanvas = $('pdfCanvas');
-const textLayer = $('textLayer');
-const annotationCanvas = $('annotationCanvas');
-const pdfView = $('pdfView');
-const pdfCanvasWrap = $('pdfCanvasWrap');
-const thumbList = $('thumbList');
-const drawerThumbList = $('drawerThumbList');
-const secondaryToolbar = $('secondaryToolbar');
-const propsPanel = $('propsPanel');
-const pageLabel = $('pageLabel');
-const zoomLabel = $('zoomLabel');
-const toast = $('toast');
-const loadingOverlay = $('loadingOverlay');
-const loadingText = $('loadingText');
-const progressFill = $('progressFill');
-const modalBackdrop = $('modalBackdrop');
-const modalTitle = $('modalTitle');
-const modalBody = $('modalBody');
-const modalFooter = $('modalFooter');
-const drawer = $('drawer');
-const drawerBackdrop = $('drawerBackdrop');
-const textEditActions = $('textEditActions');
-const deleteSelectedTextBtn = $('deleteSelectedTextBtn');
-const editSelectedTextBtn = $('editSelectedTextBtn');
-const fontDetectBadge = $('fontDetectBadge');
-const fontDetectText = $('fontDetectText');
+function isKruti(t){if(!t)return false;if(/[\u0900-\u097F]/.test(t))return false;let m=0;for(let i=0;i<t.length;i++)if(/[vBZnk,.\[\]{}<>|\\\/\^&\*%`~]/.test(t[i]))m++;return m/t.length>.4}
+function k2u(t,v='010'){if(!t)return t;const m=v==='014'?KM14:KM;const ks=Object.keys(m).sort((a,b)=>b.length-a.length);let r='',i=0;while(i<t.length){let f=false;for(const k of ks)if(t.substr(i,k.length)===k){r+=m[k];i+=k.length;f=true;break}if(!f){r+=t[i];i++}}return r}
+function u2k(t,v='010'){if(!t)return t;const m=v==='014'?KM14:KM;const rm={};for(const[k,v2]of Object.entries(m))if(!rm[v2]||k.length>rm[v2].length)rm[v2]=k;const ks=Object.keys(rm).sort((a,b)=>b.length-a.length);let r='',i=0;while(i<t.length){let f=false;for(const k of ks)if(t.substr(i,k.length)===k){r+=rm[k];i+=k.length;f=true;break}if(!f){r+=t[i];i++}}return r}
+function detKruti(f){if(!f)return null;const n=f.replace(/\+/g,' ').toLowerCase();if(/kruti\s*dev\s*0?10/.test(n))return'Kruti Dev 010';if(/kruti\s*dev\s*0?14/.test(n))return'Kruti Dev 014';return null}
+function normFont(r){if(!r)return'Unknown';const k=detKruti(r);if(k)return k;let n=r.replace(/^[A-Z]{6}\+/,'').replace(/[-_,]/g,' ').replace(/\s+/g,' ').trim();const l=n.toLowerCase();if(l.includes('arial'))return'Arial';if(l.includes('times'))return'Times New Roman';if(l.includes('helvetica'))return'Helvetica';if(l.includes('courier'))return'Courier';if(l.includes('georgia'))return'Georgia';if(l.includes('verdana'))return'Verdana';if(l.includes('calibri'))return'Calibri';if(l.includes('mangal'))return'Mangal';if(l.includes('noto')&&l.includes('devanagari'))return l.includes('serif')?'Noto Serif Devanagari':'Noto Sans Devanagari';if(l.includes('poppins'))return'Poppins';if(l.includes('roboto'))return'Roboto';if(l.includes('open sans'))return'Open Sans';if(l.includes('lato'))return'Lato';if(l.includes('inter'))return'Inter';if(l.includes('hind'))return'Hind';if(l.includes('lohit')&&l.includes('devanagari'))return'Lohit Devanagari';if(l.includes('tiro')&&l.includes('devanagari'))return'Tiro Devanagari Hindi';return n||'Unknown'}
 
-function showToast(msg, type = '') {
-  toast.textContent = msg;
-  toast.className = 'toast show ' + type;
-  clearTimeout(toast._t);
-  toast._t = setTimeout(() => toast.className = 'toast ' + type, 2500);
-}
-function showLoading(text = 'Processing…', pct = null) {
-  loadingText.textContent = text;
-  progressFill.style.width = pct == null ? '0%' : pct + '%';
-  loadingOverlay.classList.add('active');
-}
-function updateLoading(pct, text) {
-  if (pct != null) progressFill.style.width = pct + '%';
-  if (text) loadingText.textContent = text;
-}
-function hideLoading() { loadingOverlay.classList.remove('active'); }
-function isMobile() { return window.innerWidth <= 900; }
+/* ===== STATE ===== */
+const S={pdf:null,bytes:null,cp:1,tp:0,sc:1.25,vp:null,tool:'select',hist:[],hi:-1,pa:new Map(),sel:null,edit:null,pencil:{sz:3,c:'#111827'},hl:{c:'#fde047'},eraser:{mode:'circle',sz:30},textStyle:{font:'Noto Sans Devanagari',size:16,color:'#000000',bold:false,italic:false},lock:false,lastClick:0,lastClickPos:null};
 
-function openModal(title, bodyHTML, footerHTML) {
-  modalTitle.textContent = title;
-  modalBody.innerHTML = bodyHTML;
-  modalFooter.innerHTML = footerHTML || '';
-  modalBackdrop.classList.add('active');
-}
-function closeModal() { modalBackdrop.classList.remove('active'); }
-function openDrawer() { drawer.classList.add('active'); drawerBackdrop.classList.add('active'); }
-function closeDrawer() { drawer.classList.remove('active'); drawerBackdrop.classList.remove('active'); }
+function snap(){const s=new Map();for(const[k,v]of S.pa)s.set(k,JSON.parse(JSON.stringify(v)));S.hist=S.hist.slice(0,S.hi+1);S.hist.push(s);S.hi=S.hist.length-1;updUR()}
+function rest(s){S.pa=new Map();for(const[k,v]of s)S.pa.set(k,JSON.parse(JSON.stringify(v)));renderA();updUR()}
+function undo(){if(S.hi<=0)return;S.hi--;rest(S.hist[S.hi]);toast('Undo')}
+function redo(){if(S.hi>=S.hist.length-1)return;S.hi++;rest(S.hist[S.hi]);toast('Redo')}
+function updUR(){$('bUn').disabled=S.hi<=0;$('bRe').disabled=S.hi>=S.hist.length-1}
 
-async function checkKrutiFonts() {
-  try {
-    if (document.fonts) {
-      await document.fonts.ready;
-      state.krutiFontsLoaded['Kruti Dev 010'] = document.fonts.check('16px "Kruti Dev 010"');
-      state.krutiFontsLoaded['Kruti Dev 014'] = document.fonts.check('16px "Kruti Dev 014"');
-    }
-  } catch (e) {}
-}
+/* ===== PDF LOAD/RENDER ===== */
+async function loadPDF(f){try{const b=await f.arrayBuffer();S.bytes=new Uint8Array(b);S.pdf=await pdfjsLib.getDocument({data:S.bytes.slice()}).promise;S.tp=S.pdf.numPages;S.cp=1;$('emp').style.display='none';$('pw').style.display='block';$('pn').style.display='flex';$('pInf').textContent=S.tp+' pages';snap();await renderP(S.cp);toast('PDF loaded — double-click empty area to add text')}catch(e){console.error(e);toast('Failed to open PDF')}}
 
-function looksLikeKruti(text) {
-  if (!text) return false;
-  if (/[\u0900-\u097F]/.test(text)) return false;
-  const krutiChars = 'dDefghHijJkKlLmMnoOpPqQrRsStTuUvVwWxXyYzZ`~0123456789';
-  let matches = 0;
-  for (const ch of text) {
-    if (krutiChars.includes(ch) && KRUTI_FULL_MAP[ch]) matches++;
-  }
-  return matches > text.length * 0.3;
+async function renderP(n){if(!S.pdf)return;const pg=await S.pdf.getPage(n);const vp=pg.getViewport({scale:S.sc});S.vp=vp;const cv=$('pc'),cx=cv.getContext('2d'),d=devicePixelRatio||1;cv.width=vp.width*d;cv.height=vp.height*d;cv.style.width=vp.width+'px';cv.style.height=vp.height+'px';cx.setTransform(d,0,0,d,0,0);await pg.render({canvasContext:cx,viewport:vp}).promise;const td=$('tl');td.style.width=vp.width+'px';td.style.height=vp.height+'px';td.style.setProperty('--scale-factor',S.sc);td.innerHTML='';const tc=await pg.getTextContent();await pdfjsLib.renderTextLayer({textContent:tc,container:td,viewport:vp,enhanceTextSelection:true}).promise;const an=$('ac');an.width=vp.width*d;an.height=vp.height*d;an.style.width=vp.width+'px';an.style.height=vp.height+'px';$('pw').style.width=vp.width+'px';$('pw').style.height=vp.height+'px';renderA();updPL();showHint()}
+
+function updPL(){$('pLb').textContent=`Page ${S.cp} of ${S.tp}`;$('bPr').disabled=S.cp<=1;$('bNx').disabled=S.cp>=S.tp}
+function epa(n){if(!S.pa.has(n))S.pa.set(n,{strokes:[],highlights:[],erases:[],edits:[],pageNumbers:[]});return S.pa.get(n)}
+
+function renderA(){const an=$('ac'),cx=an.getContext('2d'),d=devicePixelRatio||1;cx.setTransform(d,0,0,d,0,0);cx.clearRect(0,0,an.width,an.height);const a=epa(S.cp);
+for(const e of a.erases){cx.fillStyle=e.c||'#fff';if(e.sh==='r')cx.fillRect(e.x,e.y,e.w,e.h);else{cx.beginPath();cx.arc(e.x,e.y,e.r,0,Math.PI*2);cx.fill()}}
+for(const h of a.highlights){cx.fillStyle=h.c+'80';cx.fillRect(h.x,h.y,h.w,h.h)}
+for(const s of a.strokes){if(s.pts.length<2)continue;cx.strokeStyle=s.c;cx.lineWidth=s.sz;cx.lineCap='round';cx.lineJoin='round';cx.beginPath();cx.moveTo(s.pts[0].x,s.pts[0].y);for(let i=1;i<s.pts.length;i++){const a=s.pts[i-1],b=s.pts[i];cx.quadraticCurveTo(a.x,a.y,(a.x+b.x)/2,(a.y+b.y)/2)}cx.stroke()}
+for(const e of a.edits){cx.save();cx.font=`${e.it?'italic ':''}${e.bd?'bold ':''}${e.sz}px "${e.fn}"`;cx.fillStyle=e.c||'#000';cx.textBaseline='top';cx.fillText(e.tx,e.x,e.y);cx.restore()}
+for(const p of a.pageNumbers){cx.save();cx.font=`${p.sz}px sans-serif`;cx.fillStyle=p.c||'#000';cx.textBaseline='middle';let x=0,y=0;const v=S.vp;if(p.pos.startsWith('h'))y=p.sz+10;else y=v.height-p.sz-10;if(p.pos.endsWith('left')){cx.textAlign='left';x=20}else if(p.pos.endsWith('right')){cx.textAlign='right';x=v.width-20}else{cx.textAlign='center';x=v.width/2}cx.fillText(p.tx,x,y);cx.restore()}}
+
+function showHint(){if(S.pdf&&!S.edit){$('hint').style.display='block';clearTimeout(showHint._);showHint._=setTimeout(()=>$('hint').style.display='none',3500)}}
+
+/* ===== TOOL SWITCHING ===== */
+function setTool(t){S.tool=t;document.querySelectorAll('[data-tool]').forEach(b=>b.classList.toggle('on',b.dataset.tool===t));$('stage').classList.toggle('dm',t==='pencil'||t==='eraser'||t==='highlight');$('ov').classList.toggle('ia',t==='move'||t==='pencil'||t==='eraser'||t==='highlight');$('cc').style.display=(t==='eraser'&&S.eraser.mode==='circle')?'block':'none';$('pT').textContent=t[0].toUpperCase()+t.slice(1);hideTT();closeEd();if(t==='text')toast('Click on the page to write text')}
+
+/* ===== TEXT SELECTION ===== */
+function getSel(){const s=window.getSelection();if(!s||s.rangeCount===0||s.isCollapsed)return null;const r=s.getRangeAt(0),tl=$('tl');if(!tl.contains(r.commonAncestorContainer))return null;const sp=Array.from(tl.querySelectorAll('span')).filter(s=>{try{return r.intersectsNode(s)}catch(e){return false}});if(!sp.length)return null;const txt=s.toString(),fs=sp[0],cs=getComputedStyle(fs),rf=fs.dataset.fontName||cs.fontFamily,fz=parseFloat(cs.fontSize)||12;const rc=[];for(const s of sp){const b=s.getBoundingClientRect();if(b.width>0)rc.push(b)}if(!rc.length)return null;return{spans:sp,text:txt,font:rf,size:fz,box:{l:Math.min(...rc.map(r=>r.left)),t:Math.min(...rc.map(r=>r.top)),r:Math.max(...rc.map(r=>r.right)),b:Math.max(...rc.map(r=>r.bottom))}}}
+
+function populateFontDropdown(detected){const fonts=[...UNICODE_FONTS];if(detected&&detected!=='Unknown'&&!fonts.includes(detected))fonts.unshift(detected);for(const id of ['tF','fontTop']){const fs=$(id);fs.innerHTML='';for(const f of fonts){const o=document.createElement('option');o.value=f;o.textContent=f;if(f===detected)o.selected=true;fs.appendChild(o)}}}
+
+function showTT(sel){const tb=$('tt'),wr=$('pw').getBoundingClientRect();const cx=(sel.box.l+sel.box.r)/2-wr.left,cy=sel.box.t-wr.top;tb.style.left=cx+'px';tb.style.top=cy+'px';tb.style.display='flex';
+const det=normFont(sel.font);populateFontDropdown(det);
+$('tS').value=Math.round(sel.size*.75);S.sel=sel;S.lock=true;showEB(sel)}
+
+function showTTAt(x,y,font,size){const tb=$('tt'),wr=$('pw').getBoundingClientRect();tb.style.left=(x-wr.left)+'px';tb.style.top=(y-wr.top)+'px';tb.style.display='flex';
+populateFontDropdown(font||'Noto Sans Devanagari');
+$('tS').value=size||16;S.lock=true}
+
+function hideTT(){$('tt').style.display='none';$('eb').style.display='none';S.lock=false}
+
+function showEB(sel){const b=$('eb'),det=normFont(sel.font),ik=det==='Kruti Dev 010'||det==='Kruti Dev 014',lk=!ik&&isKruti(sel.text);if(ik||lk){const v=det==='Kruti Dev 014'?'014':'010';b.textContent=`🔤 ${det!=='Unknown'?det:'Kruti Dev'} → Unicode`;b.style.display='block';const wr=$('pw').getBoundingClientRect();b.style.left=((sel.box.l+sel.box.r)/2-wr.left)+'px';b.style.top=(sel.box.b-wr.top+6)+'px';S.sel.enc=v;S.sel.isK=true}else{b.style.display='none';if(S.sel){S.sel.enc=null;S.sel.isK=false}}}
+
+document.addEventListener('selectionchange',()=>{if(S.tool!=='select')return;if(S.lock)return;if(S.edit)return;const s=getSel();if(s)showTT(s);else hideTT()});
+
+/* ===== CLICK OUTSIDE TO DISMISS ===== */
+$('stage').addEventListener('pointerdown',e=>{if(e.target.closest('.tt')||e.target.closest('.te')||e.target.closest('.eb'))return;if(S.edit)return;S.lock=false;hideTT()});
+$('stage').addEventListener('scroll',()=>{if(!S.edit)hideTT()});
+
+/* ===== TEXT EDITOR — EDIT EXISTING ===== */
+function openEd(){if(!S.sel){toast('Select text first');return}closeEd();const wr=$('pw'),wrR=wr.getBoundingClientRect(),sel=S.sel,det=normFont(sel.font),ik=det==='Kruti Dev 010'||det==='Kruti Dev 014'||sel.isK||isKruti(sel.text),v=sel.enc||(det==='Kruti Dev 014'?'014':'010');let dt=sel.text,ef=det;if(ik){dt=k2u(sel.text,v);ef='Noto Sans Devanagari';toast('Converted to Unicode')}
+const d=document.createElement('div');d.className='te';d.contentEditable='true';d.spellcheck=false;d.style.fontFamily=`"${ef}",sans-serif`;d.style.fontSize=sel.size+'px';d.style.left=(sel.box.l-wrR.left)+'px';d.style.top=(sel.box.t-wrR.top)+'px';d.style.color=getComputedStyle(sel.spans[0]).color;d.textContent=dt;wr.appendChild(d);S.lock=true;
+setTimeout(()=>{d.focus();const r=document.createRange();r.selectNodeContents(d);const s=window.getSelection();s.removeAllRanges();s.addRange(r)},30);
+S.edit={el:d,orig:sel.text,of:det,ik:ik,v:v,box:sel.box,isNew:false};
+attachEdHandlers(d)}
+
+/* ===== TEXT EDITOR — ADD NEW (double-click on empty area) ===== */
+function openNewEd(clientX,clientY){closeEd();const wr=$('pw'),wrR=wr.getBoundingClientRect(),ts=S.textStyle;const x=clientX-wrR.left,y=clientY-wrR.top;
+const d=document.createElement('div');d.className='te';d.contentEditable='true';d.spellcheck=false;d.style.fontFamily=`"${ts.font}",sans-serif`;d.style.fontSize=ts.size+'px';d.style.fontWeight=ts.bold?'bold':'normal';d.style.fontStyle=ts.italic?'italic':'normal';d.style.left=x+'px';d.style.top=y+'px';d.style.color=ts.color;d.textContent='';wr.appendChild(d);
+S.lock=true;
+setTimeout(()=>{d.focus()},30);
+S.edit={el:d,orig:'',of:ts.font,ik:false,v:null,box:{l:clientX,t:clientY,r:clientX+40,b:clientY+20},isNew:true};
+showTTAt(clientX,clientY,ts.font,ts.size);
+attachEdHandlers(d);
+toast('Type your text — choose any font')}
+
+function attachEdHandlers(d){
+d.addEventListener('blur',()=>{setTimeout(()=>{if(S.edit&&S.edit.el===d)commitEd();S.lock=false},180)});
+d.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();d.blur()}if(e.key==='Escape'){if(S.edit&&S.edit.isNew){d.remove();S.edit=null;hideTT()}else{d.textContent=S.edit.orig;d.blur()}}});
 }
 
-function detectFontFromName(fontName) {
-  if (!fontName) return 'Auto Detect';
-  const lower = fontName.toLowerCase();
-  if (lower.includes('kruti') && lower.includes('010')) return 'Kruti Dev 010';
-  if (lower.includes('kruti') && lower.includes('014')) return 'Kruti Dev 014';
-  if (lower.includes('kruti')) return 'Kruti Dev 010';
-  if (lower.includes('mangal') || lower.includes('devanagari')) return 'Noto Sans Devanagari';
-  if (lower.includes('arial')) return 'Arial';
-  if (lower.includes('times')) return 'Times New Roman';
-  if (lower.includes('helvetica')) return 'Helvetica';
-  if (lower.includes('courier')) return 'Courier';
-  return 'Auto Detect';
-}
-
-/* ---------- NEW: Detect font from a collection of spans ---------- */
-function detectFontFromSpans(spans) {
-  if (!spans || spans.length === 0) return { font: 'Auto Detect', type: 'english' };
-
-  const combinedText = spans.map(s => s.textContent).join('');
-  const fontNames = spans.map(s => s.dataset.fontName || '').filter(Boolean);
-
-  // Check for Kruti Dev in font names
-  const kruti010 = fontNames.some(f => /kruti.*010/i.test(f) || (/kruti/i.test(f) && !/014/i.test(f)));
-  const kruti014 = fontNames.some(f => /kruti.*014/i.test(f));
-
-  // Check for Devanagari Unicode
-  const hasDevanagari = /[\u0900-\u097F]/.test(combinedText);
-
-  // Check for Kruti Dev encoding in text
-  const textLooksKruti = looksLikeKruti(combinedText);
-
-  if (kruti014) return { font: 'Kruti Dev 014', type: 'kruti' };
-  if (kruti010) return { font: 'Kruti Dev 010', type: 'kruti' };
-  if (hasDevanagari) return { font: 'Noto Sans Devanagari', type: 'hindi' };
-  if (textLooksKruti) return { font: 'Kruti Dev 010', type: 'kruti' };
-
-  // Fall back to most common font name
-  const counts = {};
-  fontNames.forEach(f => { counts[f] = (counts[f] || 0) + 1; });
-  let topFont = '';
-  let topCount = 0;
-  for (const f in counts) {
-    if (counts[f] > topCount) { topCount = counts[f]; topFont = f; }
-  }
-  const detected = detectFontFromName(topFont);
-  return { font: detected === 'Auto Detect' ? 'Arial' : detected, type: 'english' };
-}
-
-/* ---------- NEW: Find text spans inside a CSS-pixel rectangle ---------- */
-function findSpansInCssRect(cssX, cssY, cssW, cssH) {
-  const spans = textLayer.querySelectorAll('span');
-  const found = [];
-  spans.forEach(span => {
-    const rect = span.getBoundingClientRect();
-    const layerRect = textLayer.getBoundingClientRect();
-    const sx = rect.left - layerRect.left;
-    const sy = rect.top - layerRect.top;
-    const sw = rect.width;
-    const sh = rect.height;
-    // Check overlap
-    if (sx + sw > cssX && sx < cssX + cssW &&
-        sy + sh > cssY && sy < cssY + cssH) {
-      found.push(span);
-    }
-  });
-  // Sort by y then x for reading order
-  found.sort((a, b) => {
-    const ay = parseFloat(a.style.top);
-    const by = parseFloat(b.style.top);
-    if (Math.abs(ay - by) > 4) return ay - by;
-    return parseFloat(a.style.left) - parseFloat(b.style.left);
-  });
-  return found;
-}
-
-/* ---------- NEW: Combine spans into lines of text ---------- */
-function combineSpansToText(spans) {
-  if (spans.length === 0) return '';
-  // Group by approximate y
-  const lines = [];
-  let currentLine = [spans[0]];
-  let lastY = parseFloat(spans[0].style.top);
-  for (let i = 1; i < spans.length; i++) {
-    const y = parseFloat(spans[i].style.top);
-    if (Math.abs(y - lastY) > 4) {
-      lines.push(currentLine);
-      currentLine = [spans[i]];
-      lastY = y;
-    } else {
-      currentLine.push(spans[i]);
-    }
-  }
-  lines.push(currentLine);
-  // Join each line with spaces, join lines with newlines
-  return lines.map(line => line.map(s => s.textContent).join(' ')).join('\n');
-}
-
-/* ---------- NEW: Get average font size from spans ---------- */
-function getAverageFontSize(spans) {
-  if (spans.length === 0) return state.fontSize;
-  let sum = 0;
-  spans.forEach(s => { sum += parseFloat(s.style.fontSize) || 12; });
-  return Math.round(sum / spans.length);
-}
-
-/* ---------- NEW: Create editable text box from captured spans ---------- */
-function createEditBoxFromSpans(spans, cssX, cssY, cssW, cssH) {
-  if (state.activeTextBox) commitTextBox();
-  const text = combineSpansToText(spans);
-  if (!text.trim()) {
-    showToast('No text found in selection', 'error');
-    return;
-  }
-
-  const detection = detectFontFromSpans(spans);
-  const avgSize = getAverageFontSize(spans);
-
-  // Show font detection badge
-  showFontDetectBadge(detection, cssX + cssW + 8, cssY);
-
-  // Update state with detected font
-  state.fontFamily = detection.font;
-  state.fontSize = avgSize / state.scale; // convert from CSS px to "PDF" px
-
-  // Hide original spans
-  spans.forEach(s => { s.dataset.wasHiddenByCapture = 'true'; s.style.visibility = 'hidden'; });
-
-  // Create editable box
-  const box = document.createElement('div');
-  box.className = 'text-edit-box';
-  box.contentEditable = 'true';
-  box.textContent = text;
-  box.style.left = cssX + 'px';
-  box.style.top = cssY + 'px';
-  box.style.width = cssW + 'px';
-  box.style.minWidth = cssW + 'px';
-  box.style.minHeight = cssH + 'px';
-  box.style.fontSize = avgSize + 'px';
-  const ff = detection.font;
-  box.style.fontFamily = ff.includes(' ') ? `"${ff}"` : ff;
-  box.style.color = '#000';
-  box.style.fontWeight = 'normal';
-  box.style.fontStyle = 'normal';
-  box.style.textDecoration = 'none';
-  box.dataset.isNew = 'true';
-  box.dataset.bold = 'false';
-  box.dataset.italic = 'false';
-  box.dataset.underline = 'false';
-  box.dataset.capturedSpans = spans.map(s => s.dataset.idx).join(',');
-  textLayer.appendChild(box);
-  state.activeTextBox = box;
-  box.focus();
-
-  // Select all text
-  const range = document.createRange();
-  range.selectNodeContents(box);
-  const sel = window.getSelection();
-  sel.removeAllRanges();
-  sel.addRange(range);
-
-  updateSecondaryToolbar();
-  updatePropsPanel();
-
-  box.addEventListener('blur', () => {
-    hideFontDetectBadge();
-    commitTextBox();
-  });
-  box.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') { box.blur(); }
-  });
-}
-
-function showFontDetectBadge(detection, x, y) {
-  fontDetectBadge.className = '';
-  fontDetectBadge.classList.add(detection.type);
-  let label = '';
-  if (detection.type === 'kruti') label = 'Kruti Dev detected';
-  else if (detection.type === 'hindi') label = 'Hindi Unicode detected';
-  else label = 'English detected';
-  fontDetectText.textContent = `${label}: ${detection.font}`;
-  fontDetectBadge.style.display = 'block';
-  fontDetectBadge.style.left = x + 'px';
-  fontDetectBadge.style.top = y + 'px';
-  // Auto-hide after 3s
-  clearTimeout(fontDetectBadge._hideT);
-  fontDetectBadge._hideT = setTimeout(hideFontDetectBadge, 3000);
-}
-function hideFontDetectBadge() {
-  fontDetectBadge.style.display = 'none';
-}
-
-function getTextEditBounds(te) {
-  const ctx = annotationCanvas.getContext('2d');
-  const fontStyle = (te.italic ? 'italic ' : '') + (te.bold ? 'bold ' : '');
-  const fontFam = te.fontFamily && te.fontFamily.includes(' ') ? `"${te.fontFamily}"` : (te.fontFamily || 'sans-serif');
-  ctx.font = `${fontStyle}${te.size}px ${fontFam}`;
-  const lines = te.text.split('\n');
-  let maxWidth = 0;
-  lines.forEach(line => { maxWidth = Math.max(maxWidth, ctx.measureText(line).width); });
-  const totalHeight = lines.length * te.size * 1.2;
-  return { x: te.x, y: te.y, w: maxWidth, h: totalHeight };
-}
-
-async function loadPDF(fileOrBytes) {
-  try {
-    showLoading('Loading PDF…', 10);
-    let bytes;
-    if (fileOrBytes instanceof File) {
-      bytes = new Uint8Array(await fileOrBytes.arrayBuffer());
-      state.fileName = fileOrBytes.name.replace(/\.pdf$/i, '') + '-edited.pdf';
-    } else {
-      bytes = fileOrBytes;
-    }
-    state.pdfBytes = bytes;
-    updateLoading(30, 'Parsing PDF…');
-    const pdf = await pdfjsLib.getDocument({ data: bytes.slice(0) }).promise;
-    state.pdfDoc = pdf;
-    state.totalPages = pdf.numPages;
-    state.currentPage = 1;
-    state.pages = [];
-    state.annotations = {};
-    state.pageRotations = {};
-    state.deletedPages = new Set();
-    state.selectedTextEditIdx = -1;
-
-    updateLoading(50, 'Extracting text…');
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      state.pages.push({ pdfPage: page });
-      state.annotations[i] = { drawings: [], highlights: [], textEdits: [], erasures: [], pageNumbers: [] };
-      state.pageRotations[i] = 0;
-      updateLoading(50 + (i / pdf.numPages) * 30);
-    }
-
-    state.history = [JSON.parse(JSON.stringify({ annotations: state.annotations, deletedPages: [], pageRotations: state.pageRotations }))];
-    state.historyIndex = 0;
-
-    updateLoading(85, 'Rendering thumbnails…');
-    await renderThumbnails();
-    updateLoading(95, 'Preparing editor…');
-    await renderCurrentPage();
-
-    hideLoading();
-    homeScreen.style.display = 'none';
-    editorScreen.classList.add('active');
-    setTool('select');
-    updatePageLabel();
-    updateHistoryButtons();
-    autosave();
-    showToast('PDF loaded successfully', 'success');
-  } catch (err) {
-    console.error(err);
-    hideLoading();
-    showToast('Failed to load PDF: ' + err.message, 'error');
-  }
-}
-
-function buildThumbItem(i) {
-  const dataUrl = state.pages[i-1].thumbDataUrl;
-  const item = document.createElement('div');
-  const isDeleted = state.deletedPages.has(i);
-  item.className = 'thumb-item' + (i === state.currentPage ? ' active' : '') + (isDeleted ? ' deleted' : '');
-  item.dataset.page = i;
-  item.innerHTML = `
-    <img class="thumb-canvas" src="${dataUrl}" alt="Page ${i}" />
-    <div class="thumb-label">Page ${i}${isDeleted ? ' (deleted)' : ''}</div>
-    <div class="thumb-actions">
-      <button class="thumb-action-btn" data-action="rotate" title="Rotate">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-      </button>
-      <button class="thumb-action-btn" data-action="delete" title="Delete">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg>
-      </button>
-    </div>
-  `;
-  item.addEventListener('click', (e) => {
-    if (e.target.closest('.thumb-action-btn')) return;
-    goToPage(i);
-    if (isMobile()) closeDrawer();
-  });
-  const rotBtn = item.querySelector('[data-action="rotate"]');
-  const delBtn = item.querySelector('[data-action="delete"]');
-  if (rotBtn) rotBtn.addEventListener('click', (e) => { e.stopPropagation(); rotatePage(i); });
-  if (delBtn) delBtn.addEventListener('click', (e) => { e.stopPropagation(); deletePage(i); });
-  return item;
-}
-
-async function renderThumbnails() {
-  thumbList.innerHTML = '';
-  drawerThumbList.innerHTML = '';
-  for (let i = 1; i <= state.totalPages; i++) {
-    const page = state.pages[i-1].pdfPage;
-    const viewport = page.getViewport({ scale: 0.2, rotate: state.pageRotations[i] || 0 });
-    const canvas = document.createElement('canvas');
-    canvas.width = viewport.width;
-    canvas.height = viewport.height;
-    await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
-    state.pages[i-1].thumbDataUrl = canvas.toDataURL('image/jpeg', 0.6);
-    thumbList.appendChild(buildThumbItem(i));
-    drawerThumbList.appendChild(buildThumbItem(i));
-  }
-}
-
-async function renderCurrentPage() {
-  const page = state.pages[state.currentPage - 1].pdfPage;
-  const rotation = state.pageRotations[state.currentPage] || 0;
-  const viewport = page.getViewport({ scale: state.scale, rotate: rotation });
-
-  pdfCanvas.width = viewport.width;
-  pdfCanvas.height = viewport.height;
-  const ctx = pdfCanvas.getContext('2d');
-  ctx.clearRect(0, 0, pdfCanvas.width, pdfCanvas.height);
-  await page.render({ canvasContext: ctx, viewport }).promise;
-
-  annotationCanvas.width = viewport.width;
-  annotationCanvas.height = viewport.height;
-  annotationCanvas.style.width = viewport.width + 'px';
-  annotationCanvas.style.height = viewport.height + 'px';
-
-  await renderTextLayer(page, viewport);
-  renderAnnotations();
-
-  pdfCanvasWrap.style.width = viewport.width + 'px';
-  pdfCanvasWrap.style.height = viewport.height + 'px';
-}
-
-async function renderTextLayer(page, viewport) {
-  textLayer.innerHTML = '';
-  textLayer.style.width = viewport.width + 'px';
-  textLayer.style.height = viewport.height + 'px';
-
-  const textContent = await page.getTextContent();
-  state.pages[state.currentPage - 1].textItems = textContent.items;
-  state.pages[state.currentPage - 1].viewport = viewport;
-
-  textContent.items.forEach((item, idx) => {
-    if (!item.str) return;
-    const tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
-    const fontHeight = Math.hypot(tx[2], tx[3]);
-    const span = document.createElement('span');
-    span.textContent = item.str;
-    span.style.left = tx[4] + 'px';
-    span.style.top = (tx[5] - fontHeight) + 'px';
-    span.style.fontSize = fontHeight + 'px';
-    span.style.fontFamily = item.fontName || 'sans-serif';
-    span.dataset.idx = idx;
-    span.dataset.fontName = item.fontName || '';
-    span.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const currentVp = state.pages[state.currentPage - 1].viewport;
-      if (state.tool === 'edit') startEditSpan(span, item, currentVp);
-      else if (state.tool === 'highlight') highlightSpan(span, item, currentVp);
-      else if (state.tool === 'eraser') eraseSpan(span, item, currentVp);
-    });
-    textLayer.appendChild(span);
-  });
-}
-
-function renderAnnotations() {
-  const ctx = annotationCanvas.getContext('2d');
-  ctx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
-  const ann = state.annotations[state.currentPage] || { drawings: [], highlights: [], textEdits: [], erasures: [], pageNumbers: [] };
-  const s = state.scale;
-
-  ann.erasures.forEach(er => {
-    ctx.fillStyle = 'white';
-    ctx.fillRect(er.x * s, er.y * s, er.w * s, er.h * s);
-  });
-
-  ann.highlights.forEach(hl => {
-    ctx.globalAlpha = hl.opacity || 0.4;
-    ctx.fillStyle = hl.color;
-    ctx.fillRect(hl.x * s, hl.y * s, hl.w * s, hl.h * s);
-    ctx.globalAlpha = 1;
-  });
-
-  ann.drawings.forEach(d => {
-    if (d.points.length < 2) return;
-    ctx.globalAlpha = d.opacity || 1;
-    ctx.strokeStyle = d.color;
-    ctx.lineWidth = d.size * s;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.beginPath();
-    ctx.moveTo(d.points[0].x * s, d.points[0].y * s);
-    for (let i = 1; i < d.points.length - 1; i++) {
-      const xc = (d.points[i].x + d.points[i+1].x) / 2 * s;
-      const yc = (d.points[i].y + d.points[i+1].y) / 2 * s;
-      ctx.quadraticCurveTo(d.points[i].x * s, d.points[i].y * s, xc, yc);
-    }
-    const last = d.points[d.points.length - 1];
-    ctx.lineTo(last.x * s, last.y * s);
-    ctx.stroke();
-    ctx.globalAlpha = 1;
-  });
-
-  ann.textEdits.forEach((te, idx) => {
-    if (te.hidden) return;
-    ctx.save();
-    ctx.fillStyle = te.color || '#000';
-    const fontStyle = (te.italic ? 'italic ' : '') + (te.bold ? 'bold ' : '');
-    const fontFam = te.fontFamily && te.fontFamily.includes(' ') ? `"${te.fontFamily}"` : (te.fontFamily || 'sans-serif');
-    ctx.font = `${fontStyle}${te.size * s}px ${fontFam}`;
-    ctx.textBaseline = 'top';
-    const lines = te.text.split('\n');
-    let maxWidth = 0;
-    lines.forEach((line, i) => {
-      const lineY = (te.y + i * te.size * 1.2) * s;
-      ctx.fillText(line, te.x * s, lineY);
-      const metrics = ctx.measureText(line);
-      maxWidth = Math.max(maxWidth, metrics.width);
-      if (te.underline && line) {
-        const underlineY = lineY + te.size * s * 1.05;
-        ctx.strokeStyle = te.color || '#000';
-        ctx.lineWidth = Math.max(1, te.size * s * 0.08);
-        ctx.beginPath();
-        ctx.moveTo(te.x * s, underlineY);
-        ctx.lineTo(te.x * s + metrics.width, underlineY);
-        ctx.stroke();
-      }
-    });
-    if (idx === state.selectedTextEditIdx && state.tool === 'select') {
-      const totalHeight = lines.length * te.size * 1.2 * s;
-      ctx.strokeStyle = '#2563eb';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([5, 3]);
-      ctx.strokeRect(te.x * s - 4, te.y * s - 4, maxWidth + 8, totalHeight + 8);
-      ctx.setLineDash([]);
-      const handleSize = 6;
-      ctx.fillStyle = '#2563eb';
-      ctx.fillRect(te.x * s - 4 - handleSize/2, te.y * s - 4 - handleSize/2, handleSize, handleSize);
-      ctx.fillRect(te.x * s + maxWidth + 4 - handleSize/2, te.y * s - 4 - handleSize/2, handleSize, handleSize);
-      ctx.fillRect(te.x * s - 4 - handleSize/2, te.y * s + totalHeight + 4 - handleSize/2, handleSize, handleSize);
-      ctx.fillRect(te.x * s + maxWidth + 4 - handleSize/2, te.y * s + totalHeight + 4 - handleSize/2, handleSize, handleSize);
-    }
-    ctx.restore();
-  });
-
-  ann.pageNumbers.forEach(pn => {
-    ctx.save();
-    ctx.fillStyle = pn.color || '#000';
-    const fontStyle = (pn.italic ? 'italic ' : '') + (pn.bold ? 'bold ' : '');
-    const fontFam = pn.fontFamily && pn.fontFamily.includes(' ') ? `"${pn.fontFamily}"` : (pn.fontFamily || 'sans-serif');
-    ctx.font = `${fontStyle}${pn.size * s}px ${fontFam}`;
-    ctx.textBaseline = 'top';
-    const metrics = ctx.measureText(pn.text);
-    let x = pn.x * s, y = pn.y * s;
-    if (pn.align === 'center') x = pn.x * s - metrics.width / 2;
-    else if (pn.align === 'right') x = pn.x * s - metrics.width;
-    ctx.fillText(pn.text, x, y);
-    if (pn.underline) {
-      const underlineY = y + pn.size * s * 1.05;
-      ctx.strokeStyle = pn.color || '#000';
-      ctx.lineWidth = Math.max(1, pn.size * s * 0.08);
-      ctx.beginPath();
-      ctx.moveTo(x, underlineY);
-      ctx.lineTo(x + metrics.width, underlineY);
-      ctx.stroke();
-    }
-    ctx.restore();
-  });
-
-  updateTextEditActions();
-}
-
-function updateTextEditActions() {
-  if (state.tool !== 'select' || state.selectedTextEditIdx < 0) {
-    textEditActions.style.display = 'none';
-    return;
-  }
-  const ann = state.annotations[state.currentPage];
-  const te = ann.textEdits[state.selectedTextEditIdx];
-  if (!te || te.hidden) {
-    textEditActions.style.display = 'none';
-    return;
-  }
-  const bounds = getTextEditBounds(te);
-  const x = (bounds.x + bounds.w) * state.scale + 10;
-  const y = bounds.y * state.scale - 10;
-  textEditActions.style.display = 'flex';
-  textEditActions.style.left = x + 'px';
-  textEditActions.style.top = Math.max(0, y) + 'px';
-}
-
-deleteSelectedTextBtn.addEventListener('click', (e) => {
-  e.stopPropagation();
-  if (state.selectedTextEditIdx < 0) return;
-  pushHistory();
-  const ann = state.annotations[state.currentPage];
-  ann.textEdits.splice(state.selectedTextEditIdx, 1);
-  state.selectedTextEditIdx = -1;
-  renderAnnotations();
-  autosave();
-  showToast('Text deleted');
-});
-
-editSelectedTextBtn.addEventListener('click', (e) => {
-  e.stopPropagation();
-  if (state.selectedTextEditIdx < 0) return;
-  openTextEditBox(state.selectedTextEditIdx);
-});
-
-function startEditSpan(span, item, viewport) {
-  if (state.activeTextBox) commitTextBox();
-  const tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
-  const fontHeight = Math.hypot(tx[2], tx[3]);
-
-  const box = document.createElement('div');
-  box.className = 'text-edit-box';
-  box.contentEditable = 'true';
-  box.textContent = item.str;
-  box.style.left = tx[4] + 'px';
-  box.style.top = (tx[5] - fontHeight) + 'px';
-  box.style.fontSize = fontHeight + 'px';
-  const resolvedFont = resolveFontFamily(item.fontName, item.str);
-  box.style.fontFamily = resolvedFont.includes(' ') && !resolvedFont.startsWith('"') ? `"${resolvedFont}"` : resolvedFont;
-  box.style.color = 'black';
-  box.style.fontWeight = 'normal';
-  box.style.fontStyle = 'normal';
-  box.style.textDecoration = 'none';
-  box.style.minWidth = Math.max(40, span.offsetWidth) + 'px';
-  box.dataset.origIdx = span.dataset.idx;
-  box.dataset.origText = item.str;
-  box.dataset.fontName = item.fontName;
-  box.dataset.bold = 'false';
-  box.dataset.italic = 'false';
-  box.dataset.underline = 'false';
-
-  span.style.visibility = 'hidden';
-  textLayer.appendChild(box);
-  state.activeTextBox = box;
-  box.focus();
-
-  const range = document.createRange();
-  range.selectNodeContents(box);
-  const sel = window.getSelection();
-  sel.removeAllRanges();
-  sel.addRange(range);
-
-  updatePropsForText({
-    fontFamily: detectFontFromName(item.fontName),
-    fontSize: Math.round(fontHeight / state.scale),
-    text: item.str
-  });
-
-  box.addEventListener('blur', () => commitTextBox());
-  box.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') { box.blur(); }
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); box.blur(); }
-  });
-}
-
-function resolveFontFamily(fontName, text) {
-  const detected = detectFontFromName(fontName);
-  if (detected === 'Kruti Dev 010' || detected === 'Kruti Dev 014') {
-    if (state.krutiFontsLoaded[detected]) return detected;
-    return detected;
-  }
-  if (looksLikeKruti(text)) {
-    if (state.krutiFontsLoaded['Kruti Dev 010']) return 'Kruti Dev 010';
-    if (state.krutiFontsLoaded['Kruti Dev 014']) return 'Kruti Dev 014';
-  }
-  if (/[\u0900-\u097F]/.test(text)) return 'Noto Sans Devanagari, Mangal, sans-serif';
-  return 'sans-serif';
-}
-
-function commitTextBox() {
-  const box = state.activeTextBox;
-  if (!box) return;
-  const newText = box.textContent;
-  const origText = box.dataset.origText;
-  const capturedSpans = box.dataset.capturedSpans;
-
-  if (newText !== origText || box.dataset.isNew === 'true' || capturedSpans) {
-    pushHistory();
-    const ann = state.annotations[state.currentPage];
-    const idx = box.dataset.origIdx != null ? parseInt(box.dataset.origIdx) : -1;
-    const viewport = state.pages[state.currentPage - 1].viewport;
-
-    let x, y, width, height;
-    if (idx >= 0) {
-      const item = state.pages[state.currentPage - 1].textItems[idx];
-      const tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
-      const fontHeight = Math.hypot(tx[2], tx[3]);
-      x = tx[4] / state.scale;
-      y = (tx[5] - fontHeight) / state.scale;
-      width = Math.max(box.offsetWidth, 40) / state.scale;
-      height = fontHeight * 1.3 / state.scale;
-    } else {
-      x = parseFloat(box.style.left) / state.scale;
-      y = parseFloat(box.style.top) / state.scale;
-      width = Math.max(box.offsetWidth, 40) / state.scale;
-      height = parseFloat(box.style.fontSize);
-    }
-
-    // If we captured original spans, erase them
-    if (capturedSpans) {
-      const spanIdxs = capturedSpans.split(',').map(s => parseInt(s)).filter(n => !isNaN(n));
-      // Compute bounding box of all captured spans
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-      spanIdxs.forEach(si => {
-        const item = state.pages[state.currentPage - 1].textItems[si];
-        if (!item) return;
-        const vp = state.pages[state.currentPage - 1].viewport;
-        const tx = pdfjsLib.Util.transform(vp.transform, item.transform);
-        const fh = Math.hypot(tx[2], tx[3]);
-        minX = Math.min(minX, tx[4] / state.scale);
-        minY = Math.min(minY, (tx[5] - fh) / state.scale);
-        const spanW = (textLayer.querySelector(`span[data-idx="${si}"]`)?.offsetWidth || 40) / state.scale;
-        maxX = Math.max(maxX, (tx[4] / state.scale) + spanW);
-        maxY = Math.max(maxY, (tx[5] / state.scale));
-      });
-      if (minX !== Infinity) {
-        ann.erasures.push({
-          x: minX - 2 / state.scale,
-          y: minY - 2 / state.scale,
-          w: (maxX - minX) + 4 / state.scale,
-          h: (maxY - minY) + 4 / state.scale
-        });
-      }
-    } else if (idx >= 0) {
-      ann.erasures.push({ x, y, w: width + 4 / state.scale, h: height });
-    }
-
-    const fontFam = box.style.fontFamily.replace(/^"(.*)"$/, '$1');
-    ann.textEdits.push({
-      x, y,
-      text: newText,
-      size: parseFloat(box.style.fontSize) / state.scale,
-      fontFamily: fontFam,
-      color: rgbToHex(box.style.color) || '#000',
-      bold: box.dataset.bold === 'true',
-      italic: box.dataset.italic === 'true',
-      underline: box.dataset.underline === 'true'
-    });
-    renderAnnotations();
-    autosave();
-  }
-  box.remove();
-  state.activeTextBox = null;
-}
-
-function rgbToHex(rgb) {
-  if (!rgb) return null;
-  if (rgb.startsWith('#')) return rgb;
-  const m = rgb.match(/\d+/g);
-  if (!m || m.length < 3) return null;
-  return '#' + m.slice(0, 3).map(n => parseInt(n).toString(16).padStart(2, '0')).join('');
-}
-
-function highlightSpan(span, item, viewport) {
-  pushHistory();
-  const tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
-  const fontHeight = Math.hypot(tx[2], tx[3]);
-  const width = span.offsetWidth || 40;
-  const ann = state.annotations[state.currentPage];
-  ann.highlights.push({
-    x: tx[4] / state.scale, y: (tx[5] - fontHeight) / state.scale,
-    w: width / state.scale, h: fontHeight * 1.1 / state.scale,
-    color: state.highlightColor, opacity: state.highlightOpacity
-  });
-  renderAnnotations();
-  autosave();
-  showToast('Highlighted', 'success');
-}
-
-function eraseSpan(span, item, viewport) {
-  pushHistory();
-  const tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
-  const fontHeight = Math.hypot(tx[2], tx[3]);
-  const width = span.offsetWidth || 40;
-  const ann = state.annotations[state.currentPage];
-  ann.erasures.push({
-    x: tx[4] / state.scale, y: (tx[5] - fontHeight) / state.scale,
-    w: (width + 4) / state.scale, h: fontHeight * 1.3 / state.scale
-  });
-  span.style.visibility = 'hidden';
-  renderAnnotations();
-  autosave();
-  showToast('Erased', 'success');
-}
-
-function getCanvasPoint(e) {
-  const rect = annotationCanvas.getBoundingClientRect();
-  const scaleX = annotationCanvas.width / rect.width;
-  const scaleY = annotationCanvas.height / rect.height;
-  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-  return {
-    x: ((clientX - rect.left) * scaleX) / state.scale,
-    y: ((clientY - rect.top) * scaleY) / state.scale,
-    cssX: (clientX - rect.left) * scaleX,
-    cssY: (clientY - rect.top) * scaleY
-  };
-}
-
-/* ---------- Text Tool: click / drag-to-create ---------- */
-function startTextDrag(e) {
-  if (state.tool !== 'text') return;
-  if (e.touches && e.touches.length > 1) return;
-  e.preventDefault();
-  const pt = getCanvasPoint(e);
-  state.textDrag = {
-    startPdf: { x: pt.x, y: pt.y }, startCss: { x: pt.cssX, y: pt.cssY },
-    currentPdf: { x: pt.x, y: pt.y }, currentCss: { x: pt.cssX, y: pt.cssY },
-    moved: false
-  };
-}
-
-function moveTextDrag(e) {
-  if (!state.textDrag) return;
-  if (e.touches && e.touches.length > 1) return;
-  e.preventDefault();
-  const pt = getCanvasPoint(e);
-  state.textDrag.currentPdf = { x: pt.x, y: pt.y };
-  state.textDrag.currentCss = { x: pt.cssX, y: pt.cssY };
-  const dx = pt.cssX - state.textDrag.startCss.x;
-  const dy = pt.cssY - state.textDrag.startCss.y;
-  if (Math.hypot(dx, dy) > 5) state.textDrag.moved = true;
-
-  renderAnnotations();
-  if (state.textDrag.moved) {
-    const ctx = annotationCanvas.getContext('2d');
-    const x = Math.min(state.textDrag.startCss.x, state.textDrag.currentCss.x);
-    const y = Math.min(state.textDrag.startCss.y, state.textDrag.currentCss.y);
-    const w = Math.abs(state.textDrag.currentCss.x - state.textDrag.startCss.x);
-    const h = Math.abs(state.textDrag.currentCss.y - state.textDrag.startCss.y);
-    ctx.strokeStyle = '#2563eb';
-    ctx.lineWidth = 1.5;
-    ctx.setLineDash([5, 3]);
-    ctx.strokeRect(x, y, w, h);
-    ctx.setLineDash([]);
-  }
-}
-
-function endTextDrag(e) {
-  if (!state.textDrag) return;
-  const drag = state.textDrag;
-  state.textDrag = null;
-
-  if (drag.moved) {
-    const x = Math.min(drag.startCss.x, drag.currentCss.x);
-    const y = Math.min(drag.startCss.y, drag.currentCss.y);
-    const w = Math.abs(drag.currentCss.x - drag.startCss.x);
-    const h = Math.abs(drag.currentCss.y - drag.startCss.y);
-    renderAnnotations();
-    createTextBox(x, y, w, h);
-  } else {
-    renderAnnotations();
-    createTextBox(drag.startCss.x, drag.startCss.y, null, null);
-  }
-}
-
-function createTextBox(cssX, cssY, cssWidth, cssHeight) {
-  if (state.activeTextBox) commitTextBox();
-  const box = document.createElement('div');
-  box.className = 'text-edit-box';
-  box.contentEditable = 'true';
-  box.textContent = '';
-  box.style.left = cssX + 'px';
-  box.style.top = cssY + 'px';
-  box.style.fontSize = state.fontSize + 'px';
-  const ff = state.fontFamily === 'Auto Detect' ? 'sans-serif' : state.fontFamily;
-  box.style.fontFamily = ff.includes(' ') ? `"${ff}"` : ff;
-  box.style.color = state.textColor;
-  box.style.fontWeight = state.bold ? 'bold' : 'normal';
-  box.style.fontStyle = state.italic ? 'italic' : 'normal';
-  box.style.textDecoration = state.underline ? 'underline' : 'none';
-  if (cssWidth != null) {
-    box.style.width = cssWidth + 'px';
-    box.style.minWidth = cssWidth + 'px';
-  } else {
-    box.style.minWidth = '120px';
-  }
-  if (cssHeight != null) box.style.minHeight = cssHeight + 'px';
-  box.dataset.isNew = 'true';
-  box.dataset.bold = state.bold ? 'true' : 'false';
-  box.dataset.italic = state.italic ? 'true' : 'false';
-  box.dataset.underline = state.underline ? 'true' : 'false';
-  textLayer.appendChild(box);
-  state.activeTextBox = box;
-  box.focus();
-  box.addEventListener('blur', () => {
-    if (!box.textContent.trim()) { box.remove(); state.activeTextBox = null; return; }
-    pushHistory();
-    const ann = state.annotations[state.currentPage];
-    ann.textEdits.push({
-      x: parseFloat(box.style.left) / state.scale,
-      y: parseFloat(box.style.top) / state.scale,
-      text: box.textContent,
-      size: parseFloat(box.style.fontSize),
-      fontFamily: box.style.fontFamily.replace(/^"(.*)"$/, '$1'),
-      color: rgbToHex(box.style.color) || state.textColor,
-      bold: box.dataset.bold === 'true',
-      italic: box.dataset.italic === 'true',
-      underline: box.dataset.underline === 'true'
-    });
-    box.remove();
-    state.activeTextBox = null;
-    renderAnnotations();
-    autosave();
-  });
-}
-
-function openTextEditBox(idx) {
-  if (state.activeTextBox) commitTextBox();
-  const ann = state.annotations[state.currentPage];
-  const te = ann.textEdits[idx];
-  if (!te) return;
-
-  const cssX = te.x * state.scale;
-  const cssY = te.y * state.scale;
-  const box = document.createElement('div');
-  box.className = 'text-edit-box';
-  box.contentEditable = 'true';
-  box.textContent = te.text;
-  box.style.left = cssX + 'px';
-  box.style.top = cssY + 'px';
-  box.style.fontSize = (te.size * state.scale) + 'px';
-  const fontFam = te.fontFamily && te.fontFamily.includes(' ') ? `"${te.fontFamily}"` : (te.fontFamily || 'sans-serif');
-  box.style.fontFamily = fontFam;
-  box.style.color = te.color || '#000';
-  box.style.fontWeight = te.bold ? 'bold' : 'normal';
-  box.style.fontStyle = te.italic ? 'italic' : 'normal';
-  box.style.textDecoration = te.underline ? 'underline' : 'none';
-  box.dataset.editIdx = idx;
-  textLayer.appendChild(box);
-  state.activeTextBox = box;
-  box.focus();
-
-  const range = document.createRange();
-  range.selectNodeContents(box);
-  const sel = window.getSelection();
-  sel.removeAllRanges();
-  sel.addRange(range);
-
-  box.addEventListener('blur', () => {
-    const newText = box.textContent;
-    if (newText !== te.text) {
-      pushHistory();
-      te.text = newText;
-      autosave();
-    }
-    box.remove();
-    state.activeTextBox = null;
-    state.selectedTextEditIdx = -1;
-    renderAnnotations();
-  });
-
-  box.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') { box.blur(); }
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); box.blur(); }
-  });
-}
-
-pdfCanvasWrap.addEventListener('dblclick', (e) => {
-  if (state.activeTextBox) return;
-  if (e.target.closest('.text-edit-box')) return;
-  if (e.target.closest('#textEditActions')) return;
-  if (e.target.tagName === 'SPAN' && state.tool === 'edit') return;
-  e.preventDefault();
-  const pt = getCanvasPoint(e);
-  createTextBox(pt.cssX, pt.cssY, null, null);
-});
-
-annotationCanvas.addEventListener('dblclick', (e) => {
-  if (state.activeTextBox) return;
-  const pt = getCanvasPoint(e);
-  const ann = state.annotations[state.currentPage];
-
-  for (let i = ann.textEdits.length - 1; i >= 0; i--) {
-    const te = ann.textEdits[i];
-    if (te.hidden) continue;
-    const bounds = getTextEditBounds(te);
-    if (pt.x >= bounds.x && pt.x <= bounds.x + bounds.w &&
-        pt.y >= bounds.y && pt.y <= bounds.y + bounds.h) {
-      state.selectedTextEditIdx = i;
-      openTextEditBox(i);
-      renderAnnotations();
-      return;
-    }
+function commitEd(){if(!S.edit)return;const{el,orig,box,ik,v,of,isNew}=S.edit;const nt=el.textContent;
+if(nt.trim()!==''){const a=epa(S.cp),wrR=$('pw').getBoundingClientRect();
+if(!isNew){a.erases.push({sh:'r',x:box.l-wrR.left,y:box.t-wrR.top,w:box.r-box.l,h:box.b-box.t,c:'#fff'})}
+const cs=getComputedStyle(el);let et=nt,ef=cs.fontFamily.replace(/"/g,'');
+// If user chose a Kruti font, convert Unicode → Kruti for export
+const chosenFont=$('tF').value;
+if(chosenFont==='Kruti Dev 010'||chosenFont==='Kruti Dev 014'){et=u2k(nt,chosenFont==='Kruti Dev 014'?'014':'010');ef=chosenFont}
+else if(ik){et=u2k(nt,v);ef=of}
+a.edits.push({tx:et,x:box.l-wrR.left,y:box.t-wrR.top,sz:parseFloat(cs.fontSize),fn:ef,bd:cs.fontWeight>=600,it:cs.fontStyle==='italic',c:cs.color,isNew:!!isNew});
+snap();renderA()}
+if(el.parentNode)el.remove();S.edit=null;hideTT()}
+
+function closeEd(){if(S.edit)commitEd()}
+
+/* ===== TOOLBAR BUTTON HANDLERS ===== */
+['tB','tI','tH'].forEach(id=>{$(id).addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation()})});
+$('tF').addEventListener('pointerdown',e=>e.stopPropagation());
+$('tS').addEventListener('pointerdown',e=>e.stopPropagation());
+
+$('tF').addEventListener('change',e=>{S.textStyle.font=e.target.value;$('fontTop').value=e.target.value;if(S.edit)S.edit.el.style.fontFamily=`"${e.target.value}",sans-serif`});
+$('tS').addEventListener('change',e=>{S.textStyle.size=parseFloat(e.target.value)||16;$('fontSizeTop').value=S.textStyle.size;if(S.edit)S.edit.el.style.fontSize=(S.textStyle.size*1.333)+'px'});
+
+$('fontTop').addEventListener('change',e=>{$('tF').value=e.target.value;S.textStyle.font=e.target.value;if(S.edit)S.edit.el.style.fontFamily=`"${e.target.value}",sans-serif`});
+$('fontSizeTop').addEventListener('change',e=>{S.textStyle.size=parseFloat(e.target.value)||16;$('tS').value=S.textStyle.size;if(S.edit)S.edit.el.style.fontSize=(S.textStyle.size*1.333)+'px'});
+$('fontBoldTop').addEventListener('click',()=>{S.textStyle.bold=!S.textStyle.bold;$('fontBoldTop').classList.toggle('on',S.textStyle.bold);if(S.edit)S.edit.el.style.fontWeight=S.textStyle.bold?'bold':'normal'});
+$('fontItalicTop').addEventListener('click',()=>{S.textStyle.italic=!S.textStyle.italic;$('fontItalicTop').classList.toggle('on',S.textStyle.italic);if(S.edit)S.edit.el.style.fontStyle=S.textStyle.italic?'italic':'normal'});
+$('fontColorTop').addEventListener('input',e=>{$('fontColorTopSwatch').style.background=e.target.value;S.textStyle.color=e.target.value;if(S.edit){S.edit.el.style.color=e.target.value;$('tCP').value=e.target.value;$('tCS').style.background=e.target.value}});
+
+$('tB').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();if(!S.edit){toast('Double-click to add text first');return}const c=S.edit.el.style.fontWeight,ib=c==='bold'||parseInt(c)>=600;S.edit.el.style.fontWeight=ib?'normal':'bold';$('tB').classList.toggle('on',!ib)});
+
+$('tI').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();if(!S.edit){toast('Double-click to add text first');return}const c=S.edit.el.style.fontStyle,ii=c==='italic';S.edit.el.style.fontStyle=ii?'normal':'italic';$('tI').classList.toggle('on',!ii)});
+
+$('tCP').addEventListener('input',e=>{if(!S.edit){toast('Double-click to add text first');return}S.edit.el.style.color=e.target.value;$('tCS').style.background=e.target.value});
+
+$('tH').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();
+// Highlight either selection or current editor region
+const a=epa(S.cp),wrR=$('pw').getBoundingClientRect();
+let box=null;
+if(S.edit){const r=S.edit.el.getBoundingClientRect();box={l:r.left,t:r.top,r:r.right,b:r.bottom}}
+else if(S.sel){box=S.sel.box}
+if(!box){toast('Select or edit text first');return}
+a.highlights.push({x:box.l-wrR.left,y:box.t-wrR.top,w:box.r-box.l,h:box.b-box.t,c:S.hl.c});
+snap();renderA();toast('Highlight applied')});
+
+/* ===== DOUBLE-CLICK HANDLER — edit existing OR add new ===== */
+$('stage').addEventListener('dblclick',e=>{
+  if(!$('pw').contains(e.target))return;
+  if(e.target.closest('.tt')||e.target.closest('.te'))return;
+  if(S.tool!=='select'&&S.tool!=='text')return;
+  const s=S.tool==='select'?getSel():null;
+  if(s){S.sel=s;openEd()}
+  else{
+    window.getSelection().removeAllRanges();
+    openNewEd(e.clientX,e.clientY);
   }
 });
 
-/* ---------- Pencil drawing ---------- */
-function startDraw(e) {
-  if (state.tool !== 'pencil') return;
-  if (e.touches && e.touches.length > 1) return;
-  e.preventDefault();
-  state.isDrawing = true;
-  const pt = getCanvasPoint(e);
-  state.currentStroke = {
-    points: [{ x: pt.x, y: pt.y }],
-    color: state.pencilColor,
-    size: state.pencilSize / state.scale,
-    opacity: state.pencilOpacity
-  };
-}
-
-function moveDraw(e) {
-  if (!state.isDrawing || !state.currentStroke) return;
-  if (e.touches && e.touches.length > 1) return;
-  e.preventDefault();
-  const pt = getCanvasPoint(e);
-  state.currentStroke.points.push({ x: pt.x, y: pt.y });
-  renderAnnotations();
-  const ctx = annotationCanvas.getContext('2d');
-  const d = state.currentStroke;
-  const s = state.scale;
-  ctx.globalAlpha = d.opacity;
-  ctx.strokeStyle = d.color;
-  ctx.lineWidth = d.size * s;
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-  ctx.beginPath();
-  if (d.points.length === 1) {
-    ctx.arc(d.points[0].x * s, d.points[0].y * s, d.size * s / 2, 0, Math.PI * 2);
-    ctx.fillStyle = d.color;
-    ctx.fill();
-  } else {
-    ctx.moveTo(d.points[0].x * s, d.points[0].y * s);
-    for (let i = 1; i < d.points.length - 1; i++) {
-      const xc = (d.points[i].x + d.points[i+1].x) / 2 * s;
-      const yc = (d.points[i].y + d.points[i+1].y) / 2 * s;
-      ctx.quadraticCurveTo(d.points[i].x * s, d.points[i].y * s, xc, yc);
-    }
-    const last = d.points[d.points.length - 1];
-    ctx.lineTo(last.x * s, last.y * s);
-    ctx.stroke();
-  }
-  ctx.globalAlpha = 1;
-}
-
-function endDraw(e) {
-  if (!state.isDrawing) return;
-  state.isDrawing = false;
-  if (state.currentStroke && state.currentStroke.points.length > 0) {
-    pushHistory();
-    state.annotations[state.currentPage].drawings.push(state.currentStroke);
-    autosave();
-  }
-  state.currentStroke = null;
-  renderAnnotations();
-}
-
-/* ---------- Area eraser ---------- */
-let areaEraseRect = null;
-function startAreaErase(e) {
-  if (state.tool !== 'eraser') return;
-  if (e.target.closest('.text-edit-box')) return;
-  if (e.target.tagName === 'SPAN') return;
-  e.preventDefault();
-  state.isDrawing = true;
-  areaEraseRect = { start: getCanvasPoint(e), end: null };
-}
-function moveAreaErase(e) {
-  if (!state.isDrawing || !areaEraseRect) return;
-  e.preventDefault();
-  areaEraseRect.end = getCanvasPoint(e);
-  renderAnnotations();
-  const ctx = annotationCanvas.getContext('2d');
-  const s = state.scale;
-  const x = Math.min(areaEraseRect.start.x, areaEraseRect.end.x) * s;
-  const y = Math.min(areaEraseRect.start.y, areaEraseRect.end.y) * s;
-  const w = Math.abs(areaEraseRect.end.x - areaEraseRect.start.x) * s;
-  const h = Math.abs(areaEraseRect.end.y - areaEraseRect.start.y) * s;
-  ctx.strokeStyle = '#dc2626';
-  ctx.lineWidth = 1;
-  ctx.setLineDash([4, 4]);
-  ctx.strokeRect(x, y, w, h);
-  ctx.setLineDash([]);
-}
-function endAreaErase(e) {
-  if (!state.isDrawing || !areaEraseRect || !areaEraseRect.end) {
-    state.isDrawing = false; areaEraseRect = null; return;
-  }
-  const x = Math.min(areaEraseRect.start.x, areaEraseRect.end.x);
-  const y = Math.min(areaEraseRect.start.y, areaEraseRect.end.y);
-  const w = Math.abs(areaEraseRect.end.x - areaEraseRect.start.x);
-  const h = Math.abs(areaEraseRect.end.y - areaEraseRect.start.y);
-  if (w > 5 / state.scale && h > 5 / state.scale) {
-    pushHistory();
-    const ann = state.annotations[state.currentPage];
-    ann.drawings = ann.drawings.filter(d =>
-      !d.points.some(p => p.x >= x && p.x <= x + w && p.y >= y && p.y <= y + h)
-    );
-    ann.highlights = ann.highlights.filter(hl =>
-      !(hl.x + hl.w < x || hl.x > x + w || hl.y + hl.h < y || hl.y > y + h)
-    );
-    ann.erasures.push({ x, y, w, h });
-    renderAnnotations();
-    autosave();
-    showToast('Area erased', 'success');
-  }
-  state.isDrawing = false;
-  areaEraseRect = null;
-  renderAnnotations();
-}
-
-/* ---------- Select tool: click to select text edit, drag to capture original text ---------- */
-function startSelectDrag(e) {
-  if (state.tool !== 'select') return;
-  if (e.touches && e.touches.length > 1) return;
-  if (e.target.closest('#textEditActions')) return;
-  e.preventDefault();
-  const pt = getCanvasPoint(e);
-  const ann = state.annotations[state.currentPage];
-
-  // First check if clicking on an existing text edit
-  let clickedIdx = -1;
-  for (let i = ann.textEdits.length - 1; i >= 0; i--) {
-    const te = ann.textEdits[i];
-    if (te.hidden) continue;
-    const bounds = getTextEditBounds(te);
-    if (pt.x >= bounds.x && pt.x <= bounds.x + bounds.w &&
-        pt.y >= bounds.y && pt.y <= bounds.y + bounds.h) {
-      clickedIdx = i;
-      break;
-    }
-  }
-
-  if (clickedIdx >= 0) {
-    // Select existing text edit for moving
-    state.selectedTextEditIdx = clickedIdx;
-    state.isDraggingTextEdit = true;
-    state.dragStartPdf = { x: pt.x, y: pt.y };
-    state.dragOrigPos = { x: ann.textEdits[clickedIdx].x, y: ann.textEdits[clickedIdx].y };
-    state.selectRectDrag = null;
-    renderAnnotations();
-  } else {
-    // Start rectangle drag to capture original text
-    state.selectedTextEditIdx = -1;
-    state.selectRectDrag = {
-      startCss: { x: pt.cssX, y: pt.cssY },
-      currentCss: { x: pt.cssX, y: pt.cssY },
-      moved: false
-    };
-    renderAnnotations();
-  }
-}
-
-function moveSelectDrag(e) {
-  if (state.tool !== 'select') return;
-  if (e.touches && e.touches.length > 1) return;
-
-  if (state.isDraggingTextEdit) {
-    e.preventDefault();
-    const pt = getCanvasPoint(e);
-    const dx = pt.x - state.dragStartPdf.x;
-    const dy = pt.y - state.dragStartPdf.y;
-    const ann = state.annotations[state.currentPage];
-    ann.textEdits[state.selectedTextEditIdx].x = state.dragOrigPos.x + dx;
-    ann.textEdits[state.selectedTextEditIdx].y = state.dragOrigPos.y + dy;
-    renderAnnotations();
-  } else if (state.selectRectDrag) {
-    e.preventDefault();
-    const pt = getCanvasPoint(e);
-    state.selectRectDrag.currentCss = { x: pt.cssX, y: pt.cssY };
-    const dx = pt.cssX - state.selectRectDrag.startCss.x;
-    const dy = pt.cssY - state.selectRectDrag.startCss.y;
-    if (Math.hypot(dx, dy) > 5) state.selectRectDrag.moved = true;
-
-    renderAnnotations();
-    if (state.selectRectDrag.moved) {
-      const ctx = annotationCanvas.getContext('2d');
-      const x = Math.min(state.selectRectDrag.startCss.x, state.selectRectDrag.currentCss.x);
-      const y = Math.min(state.selectRectDrag.startCss.y, state.selectRectDrag.currentCss.y);
-      const w = Math.abs(state.selectRectDrag.currentCss.x - state.selectRectDrag.startCss.x);
-      const h = Math.abs(state.selectRectDrag.currentCss.y - state.selectRectDrag.startCss.y);
-      // Draw selection rectangle with green tint to indicate capture mode
-      ctx.fillStyle = 'rgba(34, 197, 94, 0.1)';
-      ctx.fillRect(x, y, w, h);
-      ctx.strokeStyle = '#16a34a';
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([5, 3]);
-      ctx.strokeRect(x, y, w, h);
-      ctx.setLineDash([]);
-
-      // Preview: highlight spans that will be captured
-      const spans = findSpansInCssRect(x, y, w, h);
-      ctx.fillStyle = 'rgba(34, 197, 94, 0.25)';
-      spans.forEach(span => {
-        const rect = span.getBoundingClientRect();
-        const layerRect = textLayer.getBoundingClientRect();
-        ctx.fillRect(rect.left - layerRect.left, rect.top - layerRect.top, rect.width, rect.height);
-      });
-    }
-  }
-}
-
-function endSelectDrag(e) {
-  if (state.tool !== 'select') return;
-
-  if (state.isDraggingTextEdit) {
-    state.isDraggingTextEdit = false;
-    const ann = state.annotations[state.currentPage];
-    const te = ann.textEdits[state.selectedTextEditIdx];
-    if (te.x !== state.dragOrigPos.x || te.y !== state.dragOrigPos.y) {
-      pushHistory();
-      autosave();
-    }
-    state.dragStartPdf = null;
-    state.dragOrigPos = null;
-  } else if (state.selectRectDrag) {
-    const drag = state.selectRectDrag;
-    state.selectRectDrag = null;
-
-    if (drag.moved) {
-      const x = Math.min(drag.startCss.x, drag.currentCss.x);
-      const y = Math.min(drag.startCss.y, drag.currentCss.y);
-      const w = Math.abs(drag.currentCss.x - drag.startCss.x);
-      const h = Math.abs(drag.currentCss.y - drag.startCss.y);
-
-      // Find spans in the rectangle
-      const spans = findSpansInCssRect(x, y, w, h);
-
-      renderAnnotations();
-
-      if (spans.length === 0) {
-        showToast('No text found in selection', 'error');
-      } else {
-        // Create editable text box from captured spans
-        createEditBoxFromSpans(spans, x, y, w, h);
-        showToast(`${spans.length} text span(s) captured — font auto-detected`, 'success');
-      }
-    } else {
-      // Just a click on empty area — deselect
-      renderAnnotations();
-    }
-  }
-}
-
-/* ---------- Tool switching ---------- */
-function setTool(tool) {
-  state.tool = tool;
-  document.querySelectorAll('[data-tool]').forEach(b => {
-    b.classList.toggle('active', b.dataset.tool === tool);
-  });
-  if (state.activeTextBox) commitTextBox();
-  if (tool !== 'select') state.selectedTextEditIdx = -1;
-
-  annotationCanvas.classList.remove('active');
-  annotationCanvas.style.cursor = 'default';
-  textLayer.style.pointerEvents = 'none';
-
-  if (tool === 'pencil') {
-    annotationCanvas.classList.add('active');
-    annotationCanvas.style.cursor = 'crosshair';
-  } else if (tool === 'eraser') {
-    annotationCanvas.classList.add('active');
-    annotationCanvas.style.cursor = 'cell';
-    textLayer.style.pointerEvents = 'auto';
-  } else if (tool === 'text') {
-    annotationCanvas.classList.add('active');
-    annotationCanvas.style.cursor = 'text';
-  } else if (tool === 'select') {
-    annotationCanvas.classList.add('active');
-    annotationCanvas.style.cursor = 'default';
-    // Enable textLayer pointer events so spans can be detected during rect drag
-    textLayer.style.pointerEvents = 'auto';
-  } else if (tool === 'edit' || tool === 'highlight') {
-    textLayer.style.pointerEvents = 'auto';
-    annotationCanvas.style.cursor = tool === 'highlight' ? 'help' : 'text';
-  }
-
-  updateSecondaryToolbar();
-  updatePropsPanel();
-  renderAnnotations();
-}
-
-function updateSecondaryToolbar() {
-  const t = state.tool;
-  let html = '';
-  if (t === 'pencil') {
-    html = `
-      <span style="font-size:12px;color:var(--muted);margin-right:4px;">Color</span>
-      <input type="color" class="color-swatch" id="pencilColorInput" value="${state.pencilColor}" />
-      <span style="font-size:12px;color:var(--muted);margin:0 4px 0 12px;">Size</span>
-      <select class="sec-select" id="pencilSizeSelect">
-        ${[1,2,3,5,8,12].map(s => `<option value="${s}" ${s===state.pencilSize?'selected':''}>${s} px</option>`).join('')}
-      </select>
-      <span style="font-size:12px;color:var(--muted);margin:0 4px 0 12px;">Opacity</span>
-      <input type="range" min="0.1" max="1" step="0.1" value="${state.pencilOpacity}" id="pencilOpacity" style="width:80px;" />
-    `;
-  } else if (t === 'highlight') {
-    html = `
-      <span style="font-size:12px;color:var(--muted);">Color</span>
-      ${['#fde047','#86efac','#93c5fd','#f9a8d4','#fdba74'].map(c =>
-        `<div class="color-swatch" style="background:${c};${c===state.highlightColor?'outline:2px solid var(--accent);':''}" data-hl-color="${c}"></div>`
-      ).join('')}
-      <input type="color" class="color-swatch" id="hlColorInput" value="${state.highlightColor}" />
-      <span style="font-size:12px;color:var(--muted);margin-left:12px;">Opacity</span>
-      <input type="range" min="0.1" max="1" step="0.1" value="${state.highlightOpacity}" id="hlOpacity" style="width:80px;" />
-    `;
-  } else if (t === 'edit' || t === 'text') {
-    html = `
-      <select class="sec-select" id="fontFamilySelect">
-        <option ${state.fontFamily==='Auto Detect'?'selected':''}>Auto Detect</option>
-        <option ${state.fontFamily==='Kruti Dev 010'?'selected':''}>Kruti Dev 010</option>
-        <option ${state.fontFamily==='Kruti Dev 014'?'selected':''}>Kruti Dev 014</option>
-        <option ${state.fontFamily==='Arial'?'selected':''}>Arial</option>
-        <option ${state.fontFamily==='Times New Roman'?'selected':''}>Times New Roman</option>
-        <option ${state.fontFamily==='Helvetica'?'selected':''}>Helvetica</option>
-        <option ${state.fontFamily==='Courier'?'selected':''}>Courier</option>
-        <option ${state.fontFamily==='Noto Sans Devanagari'?'selected':''}>Noto Sans Devanagari</option>
-      </select>
-      <button class="sec-btn" id="fontSizeDec">−</button>
-      <input type="number" class="sec-input" id="fontSizeInput" value="${state.fontSize}" min="6" max="200" />
-      <button class="sec-btn" id="fontSizeInc">+</button>
-      <button class="sec-btn ${state.bold?'active':''}" id="boldBtn" title="Bold"><b>B</b></button>
-      <button class="sec-btn ${state.italic?'active':''}" id="italicBtn" title="Italic"><i>I</i></button>
-      <button class="sec-btn ${state.underline?'active':''}" id="underlineBtn" title="Underline"><u>U</u></button>
-      <input type="color" class="color-swatch" id="textColorInput" value="${state.textColor}" />
-      ${t === 'text' ? '<span style="font-size:11px;color:var(--muted);margin-left:8px;">Tip: click, drag, or double-click page</span>' : ''}
-    `;
-  } else if (t === 'eraser') {
-    html = `
-      <span style="font-size:12px;color:var(--muted);">Click text to erase, or drag to erase an area</span>
-      <button class="sec-btn" id="clearPageAnnsBtn">Clear page annotations</button>
-    `;
-  } else if (t === 'select') {
-    html = `
-      <span style="font-size:12px;color:var(--muted);">
-        <b>Select:</b> click added text to move · drag rectangle over original text to capture & auto-detect font
-      </span>
-    `;
-  } else {
-    html = `<span style="font-size:12px;color:var(--muted);">Tip: double-click anywhere on the page to add text</span>`;
-  }
-  secondaryToolbar.innerHTML = html;
-  secondaryToolbar.classList.add('active');
-  bindSecondaryEvents();
-}
-
-function bindSecondaryEvents() {
-  const pencilColor = $('pencilColorInput');
-  if (pencilColor) pencilColor.addEventListener('input', e => state.pencilColor = e.target.value);
-  const pencilSize = $('pencilSizeSelect');
-  if (pencilSize) pencilSize.addEventListener('change', e => state.pencilSize = parseInt(e.target.value));
-  const pencilOp = $('pencilOpacity');
-  if (pencilOp) pencilOp.addEventListener('input', e => state.pencilOpacity = parseFloat(e.target.value));
-
-  const hlColor = $('hlColorInput');
-  if (hlColor) hlColor.addEventListener('input', e => state.highlightColor = e.target.value);
-  document.querySelectorAll('[data-hl-color]').forEach(el => {
-    el.addEventListener('click', () => { state.highlightColor = el.dataset.hlColor; updateSecondaryToolbar(); });
-  });
-  const hlOp = $('hlOpacity');
-  if (hlOp) hlOp.addEventListener('input', e => state.highlightOpacity = parseFloat(e.target.value));
-
-  const ff = $('fontFamilySelect');
-  if (ff) ff.addEventListener('change', e => {
-    state.fontFamily = e.target.value;
-    if (state.activeTextBox) {
-      const v = e.target.value === 'Auto Detect' ? 'sans-serif' : e.target.value;
-      state.activeTextBox.style.fontFamily = v.includes(' ') ? `"${v}"` : v;
-    }
-  });
-  const fsInput = $('fontSizeInput');
-  if (fsInput) fsInput.addEventListener('change', e => {
-    state.fontSize = parseInt(e.target.value) || 14;
-    if (state.activeTextBox) state.activeTextBox.style.fontSize = state.fontSize + 'px';
-  });
-  const fsDec = $('fontSizeDec');
-  if (fsDec) fsDec.addEventListener('click', () => {
-    state.fontSize = Math.max(6, state.fontSize - 1);
-    const inp = $('fontSizeInput'); if (inp) inp.value = state.fontSize;
-    if (state.activeTextBox) state.activeTextBox.style.fontSize = state.fontSize + 'px';
-  });
-  const fsInc = $('fontSizeInc');
-  if (fsInc) fsInc.addEventListener('click', () => {
-    state.fontSize = Math.min(200, state.fontSize + 1);
-    const inp = $('fontSizeInput'); if (inp) inp.value = state.fontSize;
-    if (state.activeTextBox) state.activeTextBox.style.fontSize = state.fontSize + 'px';
-  });
-  const boldBtn = $('boldBtn');
-  if (boldBtn) boldBtn.addEventListener('click', () => {
-    state.bold = !state.bold;
-    boldBtn.classList.toggle('active', state.bold);
-    if (state.activeTextBox) {
-      state.activeTextBox.style.fontWeight = state.bold ? 'bold' : 'normal';
-      state.activeTextBox.dataset.bold = state.bold ? 'true' : 'false';
-    }
-  });
-  const italicBtn = $('italicBtn');
-  if (italicBtn) italicBtn.addEventListener('click', () => {
-    state.italic = !state.italic;
-    italicBtn.classList.toggle('active', state.italic);
-    if (state.activeTextBox) {
-      state.activeTextBox.style.fontStyle = state.italic ? 'italic' : 'normal';
-      state.activeTextBox.dataset.italic = state.italic ? 'true' : 'false';
-    }
-  });
-  const underlineBtn = $('underlineBtn');
-  if (underlineBtn) underlineBtn.addEventListener('click', () => {
-    state.underline = !state.underline;
-    underlineBtn.classList.toggle('active', state.underline);
-    if (state.activeTextBox) {
-      state.activeTextBox.style.textDecoration = state.underline ? 'underline' : 'none';
-      state.activeTextBox.dataset.underline = state.underline ? 'true' : 'false';
-    }
-  });
-  const textColor = $('textColorInput');
-  if (textColor) textColor.addEventListener('input', e => {
-    state.textColor = e.target.value;
-    if (state.activeTextBox) state.activeTextBox.style.color = e.target.value;
-  });
-
-  const clearBtn = $('clearPageAnnsBtn');
-  if (clearBtn) clearBtn.addEventListener('click', () => {
-    if (confirm('Clear all annotations on this page?')) {
-      pushHistory();
-      state.annotations[state.currentPage] = { drawings: [], highlights: [], textEdits: [], erasures: [], pageNumbers: [] };
-      state.selectedTextEditIdx = -1;
-      renderAnnotations();
-      autosave();
-      showToast('Page annotations cleared', 'success');
-    }
-  });
-}
-
-function updatePropsPanel() {
-  const t = state.tool;
-  let html = '';
-  if (t === 'pencil') {
-    html = `
-      <div class="prop-section">
-        <div class="prop-title">Pencil</div>
-        <div class="prop-row">
-          <label style="font-size:12px;width:100%;">Color</label>
-          <input type="color" class="prop-input" style="height:40px;padding:2px;" value="${state.pencilColor}" id="propPencilColor" />
-        </div>
-        <div class="prop-row">
-          <label style="font-size:12px;width:100%;">Size</label>
-          <select class="prop-select" id="propPencilSize">
-            ${[1,2,3,5,8,12].map(s => `<option value="${s}" ${s===state.pencilSize?'selected':''}>${s} px</option>`).join('')}
-          </select>
-        </div>
-        <div class="prop-row">
-          <label style="font-size:12px;width:100%;">Opacity: ${Math.round(state.pencilOpacity*100)}%</label>
-          <input type="range" min="0.1" max="1" step="0.1" value="${state.pencilOpacity}" style="width:100%;" id="propPencilOp" />
-        </div>
-      </div>
-    `;
-  } else if (t === 'highlight') {
-    html = `
-      <div class="prop-section">
-        <div class="prop-title">Highlight</div>
-        <div class="prop-row"><label style="font-size:12px;width:100%;">Color</label></div>
-        <div class="color-grid">
-          ${['#fde047','#86efac','#93c5fd','#f9a8d4','#fdba74','#c4b5fd','#fca5a5','#a7f3d0'].map(c =>
-            `<div class="color-tile ${c===state.highlightColor?'active':''}" style="background:${c}" data-hl-tile="${c}"></div>`
-          ).join('')}
-        </div>
-        <div class="prop-row" style="margin-top:12px;">
-          <label style="font-size:12px;width:100%;">Opacity: ${Math.round(state.highlightOpacity*100)}%</label>
-          <input type="range" min="0.1" max="1" step="0.1" value="${state.highlightOpacity}" style="width:100%;" id="propHlOp" />
-        </div>
-        <p style="font-size:12px;color:var(--muted);margin-top:8px;">Click on any text to highlight it.</p>
-      </div>
-    `;
-  } else if (t === 'edit' || t === 'text') {
-    html = `
-      <div class="prop-section">
-        <div class="prop-title">Font</div>
-        <div class="prop-row">
-          <select class="prop-select" id="propFontFamily">
-            <option ${state.fontFamily==='Auto Detect'?'selected':''}>Auto Detect</option>
-            <option ${state.fontFamily==='Kruti Dev 010'?'selected':''}>Kruti Dev 010</option>
-            <option ${state.fontFamily==='Kruti Dev 014'?'selected':''}>Kruti Dev 014</option>
-            <option ${state.fontFamily==='Arial'?'selected':''}>Arial</option>
-            <option ${state.fontFamily==='Times New Roman'?'selected':''}>Times New Roman</option>
-            <option ${state.fontFamily==='Helvetica'?'selected':''}>Helvetica</option>
-            <option ${state.fontFamily==='Courier'?'selected':''}>Courier</option>
-            <option ${state.fontFamily==='Noto Sans Devanagari'?'selected':''}>Noto Sans Devanagari</option>
-          </select>
-        </div>
-        <div class="prop-row">
-          <button class="prop-btn" id="propFsDec">−</button>
-          <input type="number" class="prop-input" value="${state.fontSize}" min="6" max="200" id="propFsInput" />
-          <button class="prop-btn" id="propFsInc">+</button>
-        </div>
-        <div class="prop-row">
-          <button class="prop-btn ${state.bold?'active':''}" id="propBold" title="Bold"><b>B</b></button>
-          <button class="prop-btn ${state.italic?'active':''}" id="propItalic" title="Italic"><i>I</i></button>
-          <button class="prop-btn ${state.underline?'active':''}" id="propUnderline" title="Underline"><u>U</u></button>
-        </div>
-        <div class="prop-row">
-          <label style="font-size:12px;width:100%;">Color</label>
-          <input type="color" class="prop-input" style="height:40px;padding:2px;" value="${state.textColor}" id="propTextColor" />
-        </div>
-      </div>
-      <div class="prop-section">
-        <div class="prop-title">Tip</div>
-        <p style="font-size:12px;color:var(--muted);margin:0;">
-          ${t === 'edit' ? 'Click on any text in the PDF to edit it. Hindi/Kruti Dev fonts are auto-detected.' : 'Click to add text, drag a rectangle for a sized box, or double-click anywhere on the page.'}
-        </p>
-      </div>
-    `;
-  } else if (t === 'eraser') {
-    html = `
-      <div class="prop-section">
-        <div class="prop-title">Eraser</div>
-        <p style="font-size:13px;color:var(--muted);">
-          <b>Text mode:</b> Click text to erase.<br>
-          <b>Area mode:</b> Click and drag to erase a region.
-        </p>
-        <p style="font-size:12px;color:var(--muted);margin-top:8px;">
-          Erasures are non-destructive — they cover original content with white.
-        </p>
-        <button class="prop-btn" style="width:100%;margin-top:8px;" id="propClearPage">Clear all annotations</button>
-      </div>
-    `;
-  } else if (t === 'select') {
-    html = `
-      <div class="prop-section">
-        <div class="prop-title">Select & Capture</div>
-        <p style="font-size:13px;color:var(--muted);">
-          <b>Click</b> on text you've added to select it → drag to move.<br><br>
-          <b>Drag a rectangle</b> over original PDF text to capture it. The app will auto-detect the font (English, Hindi, or Kruti Dev) and open an editable box.<br><br>
-          Use the <b>✎</b> button to edit or <b>🗑</b> button to delete the selected added text.
-        </p>
-      </div>
-    `;
-  } else {
-    html = `
-      <div class="prop-section">
-        <div class="prop-title">Welcome</div>
-        <p style="font-size:13px;color:var(--muted);">Choose a tool from the top toolbar to start editing.</p>
-        <ul style="font-size:12px;color:var(--muted);padding-left:18px;margin:8px 0;">
-          <li><b>Edit</b> — modify existing text</li>
-          <li><b>Text</b> — click, drag, or double-click to add text</li>
-          <li><b>Select</b> — move added text, or drag rectangle to capture &amp; edit original text (auto-detects font)</li>
-          <li><b>Highlight</b> — mark text</li>
-          <li><b>Pencil</b> — draw freely</li>
-          <li><b>Eraser</b> — remove annotations</li>
-          <li><b>Page #</b> — add page numbers</li>
-        </ul>
-      </div>
-    `;
-  }
-  propsPanel.innerHTML = html;
-  bindPropsEvents();
-}
-
-function bindPropsEvents() {
-  const pc = $('propPencilColor'); if (pc) pc.addEventListener('input', e => { state.pencilColor = e.target.value; updateSecondaryToolbar(); });
-  const ps = $('propPencilSize'); if (ps) ps.addEventListener('change', e => { state.pencilSize = parseInt(e.target.value); updateSecondaryToolbar(); });
-  const po = $('propPencilOp');
-  if (po) po.addEventListener('input', e => {
-    state.pencilOpacity = parseFloat(e.target.value);
-    const lbl = po.previousElementSibling; if (lbl) lbl.textContent = 'Opacity: ' + Math.round(e.target.value*100) + '%';
-    updateSecondaryToolbar();
-  });
-  const ho = $('propHlOp');
-  if (ho) ho.addEventListener('input', e => {
-    state.highlightOpacity = parseFloat(e.target.value);
-    const lbl = ho.previousElementSibling; if (lbl) lbl.textContent = 'Opacity: ' + Math.round(e.target.value*100) + '%';
-    updateSecondaryToolbar();
-  });
-  document.querySelectorAll('[data-hl-tile]').forEach(el => {
-    el.addEventListener('click', () => {
-      state.highlightColor = el.dataset.hlTile;
-      updateSecondaryToolbar();
-      updatePropsPanel();
-    });
-  });
-  const ff = $('propFontFamily');
-  if (ff) ff.addEventListener('change', e => {
-    state.fontFamily = e.target.value;
-    if (state.activeTextBox) {
-      const v = e.target.value === 'Auto Detect' ? 'sans-serif' : e.target.value;
-      state.activeTextBox.style.fontFamily = v.includes(' ') ? `"${v}"` : v;
-    }
-    updateSecondaryToolbar();
-  });
-  const fsi = $('propFsInput');
-  if (fsi) fsi.addEventListener('change', e => {
-    state.fontSize = parseInt(e.target.value) || 14;
-    if (state.activeTextBox) state.activeTextBox.style.fontSize = state.fontSize + 'px';
-    updateSecondaryToolbar();
-  });
-  const fd = $('propFsDec'); if (fd) fd.addEventListener('click', () => changeFontSize(-1));
-  const fi = $('propFsInc'); if (fi) fi.addEventListener('click', () => changeFontSize(1));
-  const bb = $('propBold'); if (bb) bb.addEventListener('click', () => toggleBold());
-  const bi = $('propItalic'); if (bi) bi.addEventListener('click', () => toggleItalic());
-  const bu = $('propUnderline'); if (bu) bu.addEventListener('click', () => toggleUnderline());
-  const tc = $('propTextColor');
-  if (tc) tc.addEventListener('input', e => {
-    state.textColor = e.target.value;
-    if (state.activeTextBox) state.activeTextBox.style.color = e.target.value;
-    updateSecondaryToolbar();
-  });
-  const cp = $('propClearPage'); if (cp) cp.addEventListener('click', () => clearPageAnnotations());
-}
-
-function changeFontSize(delta) {
-  state.fontSize = Math.max(6, Math.min(200, state.fontSize + delta));
-  updateSecondaryToolbar();
-  updatePropsPanel();
-  if (state.activeTextBox) state.activeTextBox.style.fontSize = state.fontSize + 'px';
-}
-function toggleBold() {
-  state.bold = !state.bold;
-  updateSecondaryToolbar();
-  updatePropsPanel();
-  if (state.activeTextBox) {
-    state.activeTextBox.style.fontWeight = state.bold ? 'bold' : 'normal';
-    state.activeTextBox.dataset.bold = state.bold ? 'true' : 'false';
-  }
-}
-function toggleItalic() {
-  state.italic = !state.italic;
-  updateSecondaryToolbar();
-  updatePropsPanel();
-  if (state.activeTextBox) {
-    state.activeTextBox.style.fontStyle = state.italic ? 'italic' : 'normal';
-    state.activeTextBox.dataset.italic = state.italic ? 'true' : 'false';
-  }
-}
-function toggleUnderline() {
-  state.underline = !state.underline;
-  updateSecondaryToolbar();
-  updatePropsPanel();
-  if (state.activeTextBox) {
-    state.activeTextBox.style.textDecoration = state.underline ? 'underline' : 'none';
-    state.activeTextBox.dataset.underline = state.underline ? 'true' : 'false';
-  }
-}
-function clearPageAnnotations() {
-  if (confirm('Clear all annotations on this page?')) {
-    pushHistory();
-    state.annotations[state.currentPage] = { drawings: [], highlights: [], textEdits: [], erasures: [], pageNumbers: [] };
-    state.selectedTextEditIdx = -1;
-    renderAnnotations();
-    autosave();
-    showToast('Page annotations cleared', 'success');
-  }
-}
-
-function updatePropsForText(info) {
-  if (info.fontFamily) state.fontFamily = info.fontFamily;
-  if (info.fontSize) state.fontSize = info.fontSize;
-  updateSecondaryToolbar();
-  updatePropsPanel();
-}
-
-function goToPage(n) {
-  if (n < 1 || n > state.totalPages) return;
-  if (state.activeTextBox) commitTextBox();
-  state.currentPage = n;
-  state.selectedTextEditIdx = -1;
-  renderCurrentPage();
-  updatePageLabel();
-  updateThumbsActive();
-  pdfView.scrollTop = 0;
-}
-function updatePageLabel() {
-  pageLabel.textContent = `Page ${state.currentPage} of ${state.totalPages}`;
-}
-function updateThumbsActive() {
-  document.querySelectorAll('.thumb-item').forEach(el => {
-    el.classList.toggle('active', parseInt(el.dataset.page) === state.currentPage);
-  });
-}
-
-function setZoom(scale) {
-  state.scale = Math.max(0.25, Math.min(5, scale));
-  zoomLabel.textContent = Math.round(state.scale * 100) + '%';
-  renderCurrentPage();
-}
-
-function pushHistory() {
-  state.history = state.history.slice(0, state.historyIndex + 1);
-  const snapshot = {
-    annotations: JSON.parse(JSON.stringify(state.annotations)),
-    deletedPages: Array.from(state.deletedPages),
-    pageRotations: { ...state.pageRotations }
-  };
-  state.history.push(snapshot);
-  state.historyIndex = state.history.length - 1;
-  if (state.history.length > 50) {
-    state.history.shift();
-    state.historyIndex--;
-  }
-  updateHistoryButtons();
-}
-function undo() {
-  if (state.historyIndex <= 0) { showToast('Nothing to undo'); return; }
-  state.historyIndex--;
-  const snap = state.history[state.historyIndex];
-  state.annotations = JSON.parse(JSON.stringify(snap.annotations));
-  state.deletedPages = new Set(snap.deletedPages || []);
-  state.pageRotations = { ...snap.pageRotations };
-  state.selectedTextEditIdx = -1;
-  renderAnnotations();
-  renderThumbnails();
-  updateHistoryButtons();
-  autosave();
-  showToast('Undone');
-}
-function redo() {
-  if (state.historyIndex >= state.history.length - 1) { showToast('Nothing to redo'); return; }
-  state.historyIndex++;
-  const snap = state.history[state.historyIndex];
-  state.annotations = JSON.parse(JSON.stringify(snap.annotations));
-  state.deletedPages = new Set(snap.deletedPages || []);
-  state.pageRotations = { ...snap.pageRotations };
-  state.selectedTextEditIdx = -1;
-  renderAnnotations();
-  renderThumbnails();
-  updateHistoryButtons();
-  autosave();
-  showToast('Redone');
-}
-function updateHistoryButtons() {
-  $('undoBtn').disabled = state.historyIndex <= 0;
-  $('redoBtn').disabled = state.historyIndex >= state.history.length - 1;
-}
-
-async function rotatePage(n) {
-  pushHistory();
-  state.pageRotations[n] = ((state.pageRotations[n] || 0) + 90) % 360;
-  await renderThumbnails();
-  if (n === state.currentPage) await renderCurrentPage();
-  showToast(`Page ${n} rotated`, 'success');
-}
-
-function deletePage(n) {
-  if (state.totalPages - state.deletedPages.size <= 1) {
-    showToast('Cannot delete the only remaining page', 'error'); return;
-  }
-  if (state.deletedPages.has(n)) {
-    pushHistory();
-    state.deletedPages.delete(n);
-    renderThumbnails();
-    showToast(`Page ${n} restored`);
-    return;
-  }
-  if (!confirm(`Delete page ${n}?`)) return;
-  pushHistory();
-  state.deletedPages.add(n);
-  renderThumbnails();
-  if (state.deletedPages.has(state.currentPage)) {
-    for (let i = n + 1; i <= state.totalPages; i++) {
-      if (!state.deletedPages.has(i)) { goToPage(i); return; }
-    }
-    for (let i = n - 1; i >= 1; i--) {
-      if (!state.deletedPages.has(i)) { goToPage(i); return; }
-    }
-  }
-  showToast(`Page ${n} marked for deletion`, 'success');
-}
-
-function openPageNumberDialog() {
-  const body = `
-    <div class="form-group">
-      <label class="form-label">Position</label>
-      <div class="radio-group" id="pnPosition">
-        ${['Header Left','Header Center','Header Right','Footer Left','Footer Center','Footer Right'].map((p,i) =>
-          `<div class="radio-pill ${i===4?'active':''}" data-pos="${p}">${p}</div>`
-        ).join('')}
-      </div>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Format</label>
-      <div class="radio-group" id="pnFormat">
-        <div class="radio-pill active" data-fmt="{n}">1, 2, 3</div>
-        <div class="radio-pill" data-fmt="Page {n}">Page 1</div>
-        <div class="radio-pill" data-fmt="Page {n} of {total}">Page 1 of 10</div>
-      </div>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Start Number</label>
-      <input type="number" class="form-control" id="pnStart" value="1" min="0" />
-    </div>
-    <div class="form-group">
-      <label class="form-label">Apply To</label>
-      <div class="radio-group" id="pnApply">
-        <div class="radio-pill active" data-apply="all">All pages</div>
-        <div class="radio-pill" data-apply="current">Current page</div>
-      </div>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Font</label>
-      <div class="prop-row">
-        <select class="prop-select" id="pnFont">
-          <option>Arial</option><option>Times New Roman</option><option>Helvetica</option><option>Courier</option>
-        </select>
-        <input type="number" class="prop-input" id="pnSize" value="12" min="6" max="72" style="width:80px;" />
-        <input type="color" class="prop-input" id="pnColor" value="#000000" style="width:60px;height:34px;padding:2px;" />
-      </div>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Margin from edge (pt)</label>
-      <input type="number" class="form-control" id="pnMargin" value="20" min="0" max="200" />
-    </div>
-    <div class="form-group">
-      <label class="form-label">Preview</label>
-      <div id="pnPreview" style="padding:12px;background:#f1f5f9;border-radius:6px;text-align:center;font-size:14px;">Page 1 of ${state.totalPages}</div>
-    </div>
-  `;
-  const footer = `
-    <button class="btn btn-secondary" id="pnCancelBtn">Cancel</button>
-    <button class="btn btn-primary" id="pnApplyBtn">Apply</button>
-  `;
-  openModal('Page Numbers', body, footer);
-
-  document.querySelectorAll('#pnPosition .radio-pill').forEach(el => {
-    el.addEventListener('click', () => {
-      document.querySelectorAll('#pnPosition .radio-pill').forEach(x => x.classList.remove('active'));
-      el.classList.add('active'); updatePreview();
-    });
-  });
-  document.querySelectorAll('#pnFormat .radio-pill').forEach(el => {
-    el.addEventListener('click', () => {
-      document.querySelectorAll('#pnFormat .radio-pill').forEach(x => x.classList.remove('active'));
-      el.classList.add('active'); updatePreview();
-    });
-  });
-  document.querySelectorAll('#pnApply .radio-pill').forEach(el => {
-    el.addEventListener('click', () => {
-      document.querySelectorAll('#pnApply .radio-pill').forEach(x => x.classList.remove('active'));
-      el.classList.add('active');
-    });
-  });
-  ['pnStart','pnFont','pnSize','pnColor','pnMargin'].forEach(id => {
-    const el = $(id); if (el) el.addEventListener('input', updatePreview);
-  });
-
-  function updatePreview() {
-    const fmt = document.querySelector('#pnFormat .radio-pill.active').dataset.fmt;
-    const start = parseInt($('pnStart').value) || 1;
-    const previewText = fmt.replace('{n}', start).replace('{total}', state.totalPages);
-    const font = $('pnFont').value;
-    const size = $('pnSize').value;
-    const color = $('pnColor').value;
-    const fontCss = font.includes(' ') ? `"${font}"` : font;
-    $('pnPreview').innerHTML = `<span style="font-family:${fontCss};font-size:${size}px;color:${color};">${previewText}</span>`;
-  }
-  updatePreview();
-
-  $('pnCancelBtn').addEventListener('click', closeModal);
-  $('pnApplyBtn').addEventListener('click', () => {
-    pushHistory();
-    const position = document.querySelector('#pnPosition .radio-pill.active').dataset.pos;
-    const fmt = document.querySelector('#pnFormat .radio-pill.active').dataset.fmt;
-    const start = parseInt($('pnStart').value) || 1;
-    const applyTo = document.querySelector('#pnApply .radio-pill.active').dataset.apply;
-    const font = $('pnFont').value;
-    const size = parseInt($('pnSize').value) || 12;
-    const color = $('pnColor').value;
-    const margin = parseInt($('pnMargin').value) || 20;
-
-    if (applyTo === 'all') {
-      for (let i = 1; i <= state.totalPages; i++) state.annotations[i].pageNumbers = [];
-    } else {
-      state.annotations[state.currentPage].pageNumbers = [];
-    }
-
-    const pages = applyTo === 'all' ? Array.from({length: state.totalPages}, (_, i) => i + 1) : [state.currentPage];
-    pages.forEach((pgIdx, i) => {
-      const page = state.pages[pgIdx - 1].pdfPage;
-      const viewport = page.getViewport({ scale: 1, rotate: state.pageRotations[pgIdx] || 0 });
-      const w = viewport.width, h = viewport.height;
-      let x, y, align;
-      if (position.startsWith('Header')) {
-        y = margin;
-        align = position.endsWith('Left') ? 'left' : position.endsWith('Right') ? 'right' : 'center';
-        x = align === 'left' ? margin : align === 'right' ? w - margin : w / 2;
-      } else {
-        y = h - margin - size;
-        align = position.endsWith('Left') ? 'left' : position.endsWith('Right') ? 'right' : 'center';
-        x = align === 'left' ? margin : align === 'right' ? w - margin : w / 2;
-      }
-      const pageNum = start + i;
-      const text = fmt.replace('{n}', pageNum).replace('{total}', state.totalPages);
-      state.annotations[pgIdx].pageNumbers.push({
-        x, y, text, align,
-        fontFamily: font, size, color, bold: false, italic: false, underline: false,
-        applyTo, page: pgIdx
-      });
-    });
-
-    closeModal();
-    renderAnnotations();
-    autosave();
-    showToast('Page numbers applied', 'success');
-  });
-}
-
-async function savePDF() {
-  const name = prompt('Save as:', state.fileName);
-  if (!name) return;
-  state.fileName = name.endsWith('.pdf') ? name : name + '.pdf';
-
-  showLoading('Preparing export…', 10);
-  try {
-    const { PDFDocument } = PDFLib;
-    const origPdf = await PDFDocument.load(state.pdfBytes.slice(0));
-    const origPages = origPdf.getPages();
-
-    const keepIndices = [];
-    for (let i = 0; i < origPages.length; i++) {
-      if (!state.deletedPages.has(i + 1)) keepIndices.push(i);
-    }
-
-    const newPdf = await PDFDocument.create();
-
-    for (let idx = 0; idx < keepIndices.length; idx++) {
-      const i = keepIndices[idx];
-      const pageNum = i + 1;
-      updateLoading(10 + (idx / keepIndices.length) * 80, `Processing page ${idx + 1} of ${keepIndices.length}…`);
-
-      const pdfJsPage = await state.pdfDoc.getPage(pageNum);
-      const rotation = state.pageRotations[pageNum] || 0;
-      const viewport = pdfJsPage.getViewport({ scale: 2, rotate: rotation });
-      const canvas = document.createElement('canvas');
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      const ctx = canvas.getContext('2d');
-      await pdfJsPage.render({ canvasContext: ctx, viewport }).promise;
-
-      const origPage = origPages[i];
-      const { width: pw, height: ph } = origPage.getSize();
-      const isRotated = rotation === 90 || rotation === 270;
-      const pageW = isRotated ? ph : pw;
-      const pageH = isRotated ? pw : ph;
-
-      const scaleX = canvas.width / pageW;
-      const scaleY = canvas.height / pageH;
-
-      const ann = state.annotations[pageNum] || { drawings: [], highlights: [], textEdits: [], erasures: [], pageNumbers: [] };
-
-      ann.erasures.forEach(er => {
-        ctx.fillStyle = 'white';
-        ctx.fillRect(er.x * scaleX, er.y * scaleY, er.w * scaleX, er.h * scaleY);
-      });
-
-      ann.highlights.forEach(hl => {
-        ctx.globalAlpha = hl.opacity || 0.4;
-        ctx.fillStyle = hl.color;
-        ctx.fillRect(hl.x * scaleX, hl.y * scaleY, hl.w * scaleX, hl.h * scaleY);
-        ctx.globalAlpha = 1;
-      });
-
-      ann.drawings.forEach(d => {
-        if (d.points.length < 2) return;
-        ctx.globalAlpha = d.opacity || 1;
-        ctx.strokeStyle = d.color;
-        ctx.lineWidth = d.size * scaleX;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.beginPath();
-        ctx.moveTo(d.points[0].x * scaleX, d.points[0].y * scaleY);
-        for (let j = 1; j < d.points.length - 1; j++) {
-          const xc = (d.points[j].x + d.points[j+1].x) / 2 * scaleX;
-          const yc = (d.points[j].y + d.points[j+1].y) / 2 * scaleY;
-          ctx.quadraticCurveTo(d.points[j].x * scaleX, d.points[j].y * scaleY, xc, yc);
-        }
-        const last = d.points[d.points.length - 1];
-        ctx.lineTo(last.x * scaleX, last.y * scaleY);
-        ctx.stroke();
-        ctx.globalAlpha = 1;
-      });
-
-      ann.textEdits.forEach((te) => {
-        if (te.hidden) return;
-        ctx.save();
-        ctx.fillStyle = te.color || '#000';
-        const fontStyle = (te.italic ? 'italic ' : '') + (te.bold ? 'bold ' : '');
-        const fontFam = te.fontFamily && te.fontFamily.includes(' ') ? `"${te.fontFamily}"` : (te.fontFamily || 'sans-serif');
-        ctx.font = `${fontStyle}${te.size * scaleY}px ${fontFam}`;
-        ctx.textBaseline = 'top';
-        const lines = te.text.split('\n');
-        lines.forEach((line, li) => {
-          const lineY = (te.y + li * te.size * 1.2) * scaleY;
-          ctx.fillText(line, te.x * scaleX, lineY);
-          if (te.underline && line) {
-            const metrics = ctx.measureText(line);
-            const underlineY = lineY + te.size * scaleY * 1.05;
-            ctx.strokeStyle = te.color || '#000';
-            ctx.lineWidth = Math.max(1, te.size * scaleY * 0.08);
-            ctx.beginPath();
-            ctx.moveTo(te.x * scaleX, underlineY);
-            ctx.lineTo(te.x * scaleX + metrics.width, underlineY);
-            ctx.stroke();
-          }
-        });
-        ctx.restore();
-      });
-
-      ann.pageNumbers.forEach(pn => {
-        ctx.save();
-        ctx.fillStyle = pn.color || '#000';
-        const fontStyle = (pn.italic ? 'italic ' : '') + (pn.bold ? 'bold ' : '');
-        const fontFam = pn.fontFamily && pn.fontFamily.includes(' ') ? `"${pn.fontFamily}"` : (pn.fontFamily || 'sans-serif');
-        ctx.font = `${fontStyle}${pn.size * scaleY}px ${fontFam}`;
-        ctx.textBaseline = 'top';
-        const metrics = ctx.measureText(pn.text);
-        let x = pn.x * scaleX;
-        if (pn.align === 'center') x = pn.x * scaleX - metrics.width / 2;
-        else if (pn.align === 'right') x = pn.x * scaleX - metrics.width;
-        ctx.fillText(pn.text, x, pn.y * scaleY);
-        if (pn.underline) {
-          const underlineY = pn.y * scaleY + pn.size * scaleY * 1.05;
-          ctx.strokeStyle = pn.color || '#000';
-          ctx.lineWidth = Math.max(1, pn.size * scaleY * 0.08);
-          ctx.beginPath();
-          ctx.moveTo(x, underlineY);
-          ctx.lineTo(x + metrics.width, underlineY);
-          ctx.stroke();
-        }
-        ctx.restore();
-      });
-
-      const pngBytes = await new Promise((resolve) => {
-        canvas.toBlob(async (blob) => {
-          resolve(new Uint8Array(await blob.arrayBuffer()));
-        }, 'image/png');
-      });
-      const pngImg = await newPdf.embedPng(pngBytes);
-      const newPage = newPdf.addPage([pageW, pageH]);
-      newPage.drawImage(pngImg, { x: 0, y: 0, width: pageW, height: pageH });
-    }
-
-    updateLoading(95, 'Finalizing…');
-    const finalBytes = await newPdf.save();
-    const blob = new Blob([finalBytes], { type: 'application/pdf' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = state.fileName;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-
-    hideLoading();
-    showToast('PDF saved successfully', 'success');
-    clearAutosave();
-  } catch (err) {
-    console.error(err);
-    hideLoading();
-    showToast('Unable to save PDF: ' + err.message, 'error');
-  }
-}
-
-function autosave() {
-  try {
-    const data = {
-      annotations: state.annotations,
-      currentPage: state.currentPage,
-      scale: state.scale,
-      fileName: state.fileName,
-      deletedPages: Array.from(state.deletedPages),
-      pageRotations: state.pageRotations,
-      pdfBytesB64: arrayBufferToBase64(state.pdfBytes),
-      ts: Date.now()
-    };
-    if (state.pdfBytes.length < 5 * 1024 * 1024) {
-      localStorage.setItem('pdfEditor_autosave', JSON.stringify(data));
-    }
-  } catch (e) {}
-}
-function arrayBufferToBase64(buffer) {
-  let binary = '';
-  const bytes = new Uint8Array(buffer);
-  const chunk = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunk) {
-    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
-  }
-  return btoa(binary);
-}
-function base64ToArrayBuffer(base64) {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes;
-}
-function clearAutosave() {
-  try { localStorage.removeItem('pdfEditor_autosave'); } catch (e) {}
-}
-function checkAutosave() {
-  try {
-    const raw = localStorage.getItem('pdfEditor_autosave');
-    if (!raw) return false;
-    const data = JSON.parse(raw);
-    if (Date.now() - data.ts > 24 * 60 * 60 * 1000) { clearAutosave(); return false; }
-    if (confirm('Recover previous editing session?')) {
-      state.annotations = data.annotations;
-      state.currentPage = data.currentPage || 1;
-      state.scale = data.scale || 1.5;
-      state.fileName = data.fileName || 'edited-document.pdf';
-      state.deletedPages = new Set(data.deletedPages || []);
-      state.pageRotations = data.pageRotations || {};
-      if (data.pdfBytesB64) {
-        state.pdfBytes = base64ToArrayBuffer(data.pdfBytesB64);
-        return true;
-      }
-    } else {
-      clearAutosave();
-    }
-  } catch (e) {}
-  return false;
-}
-
-function handleTouchStart(e) {
-  if (e.touches.length === 2) {
-    e.preventDefault();
-    const t1 = e.touches[0], t2 = e.touches[1];
-    state.pinchState = {
-      dist: Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY),
-      scale: state.scale
-    };
-  }
-}
-function handleTouchMove(e) {
-  if (e.touches.length === 2 && state.pinchState) {
-    e.preventDefault();
-    const t1 = e.touches[0], t2 = e.touches[1];
-    const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
-    const ratio = dist / state.pinchState.dist;
-    setZoom(state.pinchState.scale * ratio);
-  }
-}
-function handleTouchEnd(e) {
-  if (e.touches.length < 2) state.pinchState = null;
-}
-
-$('importBtn').addEventListener('click', (e) => { e.stopPropagation(); fileInput.click(); });
-importCard.addEventListener('click', (e) => {
-  if (e.target.tagName === 'BUTTON') return;
-  fileInput.click();
-});
-importCard.addEventListener('dragover', (e) => { e.preventDefault(); importCard.classList.add('dragover'); });
-importCard.addEventListener('dragleave', () => importCard.classList.remove('dragover'));
-importCard.addEventListener('drop', (e) => {
-  e.preventDefault();
-  importCard.classList.remove('dragover');
-  const file = e.dataTransfer.files[0];
-  if (file && (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf'))) loadPDF(file);
-  else showToast('Please drop a PDF file', 'error');
-});
-fileInput.addEventListener('change', (e) => {
-  const file = e.target.files[0];
-  if (file) loadPDF(file);
-  fileInput.value = '';
-});
-$('blankBtn').addEventListener('click', async (e) => {
-  e.stopPropagation();
-  const { PDFDocument } = PDFLib;
-  const pdf = await PDFDocument.create();
-  pdf.addPage([595, 842]);
-  const bytes = await pdf.save();
-  state.fileName = 'blank.pdf';
-  loadPDF(new Uint8Array(bytes));
+$('stage').addEventListener('click',e=>{
+  if(S.tool!=='text'||S.edit||!$('pw').contains(e.target))return;
+  if(e.target.closest('.tt')||e.target.closest('.te'))return;
+  openNewEd(e.clientX,e.clientY);
 });
 
-$('backBtn').addEventListener('click', () => {
-  if (confirm('Return to home? Unsaved changes will be lost.')) {
-    editorScreen.classList.remove('active');
-    homeScreen.style.display = 'flex';
-    state.pdfDoc = null;
-  }
+/* ===== DRAWING ===== */
+const acv=$('ac');let drw=null,lastP=null;
+function gpp(e){const r=acv.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}
+
+acv.addEventListener('pointerdown',e=>{
+  if(S.tool==='select')return;
+  if(S.tool==='move'){handleMoveDown(e);return}
+  e.preventDefault();acv.setPointerCapture(e.pointerId);const p=gpp(e);lastP=p;
+  if(S.tool==='pencil')drw={t:'s',pts:[p],sz:S.pencil.sz,c:S.pencil.c};
+  else if(S.tool==='highlight')drw={t:'h',s:p,l:p,c:S.hl.c};
+  else if(S.tool==='eraser'){if(S.eraser.mode==='circle')drw={t:'ec',pts:[p],r:S.eraser.sz};else drw={t:'er',s:p,e:p}}
 });
 
-document.querySelectorAll('[data-tool]').forEach(btn => {
-  btn.addEventListener('click', () => setTool(btn.dataset.tool));
+acv.addEventListener('pointermove',e=>{
+  const p=gpp(e);lastP=p;
+  if(S.tool==='move'){handleMoveMove(e);return}
+  if(S.tool==='eraser'&&S.eraser.mode==='circle'&&!drw){const c=$('cc');c.style.display='block';c.style.width=c.style.height=(S.eraser.sz*2)+'px';c.style.left=p.x+'px';c.style.top=p.y+'px'}
+  if(!drw)return;e.preventDefault();
+  const cx=acv.getContext('2d'),d=devicePixelRatio||1;
+  if(drw.t==='s'){drw.pts.push(p);renderA();cx.setTransform(d,0,0,d,0,0);cx.strokeStyle=drw.c;cx.lineWidth=drw.sz;cx.lineCap='round';cx.lineJoin='round';cx.beginPath();cx.moveTo(drw.pts[0].x,drw.pts[0].y);for(let i=1;i<drw.pts.length;i++){const a=drw.pts[i-1],b=drw.pts[i];cx.quadraticCurveTo(a.x,a.y,(a.x+b.x)/2,(a.y+b.y)/2)}cx.stroke()}
+  else if(drw.t==='h'){drw.l=p;renderA();cx.setTransform(d,0,0,d,0,0);cx.fillStyle=drw.c+'80';cx.fillRect(Math.min(drw.s.x,p.x),Math.min(drw.s.y,p.y),Math.abs(p.x-drw.s.x),Math.abs(p.y-drw.s.y))}
+  else if(drw.t==='ec'){drw.pts.push(p);renderA();cx.setTransform(d,0,0,d,0,0);cx.fillStyle='#fff';cx.beginPath();cx.arc(p.x,p.y,drw.r,0,Math.PI*2);cx.fill()}
+  else if(drw.t==='er'){drw.e=p;renderA();cx.setTransform(d,0,0,d,0,0);cx.fillStyle='#fff';cx.fillRect(Math.min(drw.s.x,p.x),Math.min(drw.s.y,p.y),Math.abs(p.x-drw.s.x),Math.abs(p.y-drw.s.y))}
 });
 
-$('pagesBtn').addEventListener('click', () => {
-  if (isMobile()) openDrawer();
-  else {
-    const sb = $('sidebarLeft');
-    sb.style.display = sb.style.display === 'none' ? '' : 'none';
-  }
-});
-$('drawerCloseBtn').addEventListener('click', closeDrawer);
-drawerBackdrop.addEventListener('click', closeDrawer);
+function finDrw(){if(!drw)return;const a=epa(S.cp),p=lastP;
+if(drw.t==='s')a.strokes.push({pts:drw.pts,sz:drw.sz,c:drw.c});
+else if(drw.t==='h'){const e=drw.l||p;a.highlights.push({x:Math.min(drw.s.x,e.x),y:Math.min(drw.s.y,e.y),w:Math.abs(e.x-drw.s.x),h:Math.abs(e.y-drw.s.y),c:drw.c})}
+else if(drw.t==='ec')for(const pt of drw.pts)a.erases.push({sh:'c',x:pt.x,y:pt.y,r:drw.r,c:'#fff'});
+else if(drw.t==='er'){const e=drw.e||p;a.erases.push({sh:'r',c:'#fff',x:Math.min(drw.s.x,e.x),y:Math.min(drw.s.y,e.y),w:Math.abs(e.x-drw.s.x),h:Math.abs(e.y-drw.s.y)})}
+drw=null;snap();renderA()}
 
-$('prevPageBtn').addEventListener('click', () => goToPage(state.currentPage - 1));
-$('nextPageBtn').addEventListener('click', () => goToPage(state.currentPage + 1));
-$('prevPageBtnTop').addEventListener('click', () => goToPage(state.currentPage - 1));
-$('nextPageBtnTop').addEventListener('click', () => goToPage(state.currentPage + 1));
-$('zoomInBtn').addEventListener('click', () => setZoom(state.scale + 0.25));
-$('zoomOutBtn').addEventListener('click', () => setZoom(state.scale - 0.25));
-$('undoBtn').addEventListener('click', undo);
-$('redoBtn').addEventListener('click', redo);
-$('saveBtn').addEventListener('click', savePDF);
-$('pageNumBtn').addEventListener('click', openPageNumberDialog);
-$('modalCloseBtn').addEventListener('click', closeModal);
-modalBackdrop.addEventListener('click', (e) => { if (e.target === modalBackdrop) closeModal(); });
+acv.addEventListener('pointerup',finDrw);
+acv.addEventListener('pointercancel',finDrw);
 
-$('helpBtn').addEventListener('click', () => {
-  openModal('Help', `
-    <h4 style="margin:0 0 8px;">Getting Started</h4>
-    <ol style="padding-left:20px;line-height:1.8;font-size:14px;">
-      <li>Import a PDF from your device</li>
-      <li>Use <b>Edit</b> to modify existing text</li>
-      <li>Use <b>Text</b> to add new text — <b>click</b>, <b>drag a rectangle</b>, or <b>double-click</b> anywhere on the page</li>
-      <li>Use <b>Select</b> to move added text, or <b>drag a rectangle over original text</b> to capture &amp; edit it (auto-detects English / Hindi / Kruti Dev)</li>
-      <li>Use <b>Highlight</b> to mark text</li>
-      <li>Use <b>Pencil</b> to draw freely</li>
-      <li>Use <b>Eraser</b> to remove annotations</li>
-      <li>Use <b>Page #</b> to add page numbers</li>
-      <li>Use <b>&lt;</b> and <b>&gt;</b> buttons to navigate pages</li>
-      <li>Click <b>Save</b> to export</li>
-    </ol>
-    <h4 style="margin:16px 0 8px;">Hindi / Kruti Dev Support</h4>
-    <p style="font-size:14px;line-height:1.6;">The editor auto-detects Kruti Dev 010 and Kruti Dev 014 fonts. Place the font files in <code>/fonts/KrutiDev010.ttf</code> and <code>/fonts/KrutiDev014.ttf</code> next to this HTML file.</p>
-    <h4 style="margin:16px 0 8px;">Keyboard Shortcuts</h4>
-    <ul style="padding-left:20px;line-height:1.8;font-size:14px;">
-      <li><kbd>Ctrl/Cmd + Z</kbd> — Undo</li>
-      <li><kbd>Ctrl/Cmd + Shift + Z</kbd> — Redo</li>
-      <li><kbd>Ctrl/Cmd + S</kbd> — Save</li>
-      <li><kbd>Delete/Backspace</kbd> — Delete selected text</li>
-      <li><kbd>Esc</kbd> — Exit current tool</li>
-    </ul>
-  `, `<button class="btn btn-primary" onclick="document.getElementById('modalBackdrop').classList.remove('active')">Got it</button>`);
-});
+/* ===== MOVE TOOL ===== */
+let mv=null;
+function handleMoveDown(e){const p=gpp(e),a=epa(S.cp);for(let i=a.edits.length-1;i>=0;i--){const ed=a.edits[i];if(p.x>=ed.x&&p.x<=ed.x+300&&p.y>=ed.y&&p.y<=ed.y+ed.sz+4){mv={i:i,s:p,ox:ed.x,oy:ed.y};acv.setPointerCapture(e.pointerId);e.preventDefault();break}}}
+function handleMoveMove(e){if(!mv)return;const p=gpp(e),a=epa(S.cp),ed=a.edits[mv.i];ed.x=mv.ox+(p.x-mv.s.x);ed.y=mv.oy+(p.y-mv.s.y);renderA()}
+acv.addEventListener('pointerup',()=>{if(mv){mv=null;snap()}});
 
-$('settingsBtn').addEventListener('click', () => {
-  openModal('Settings', `
-    <div class="form-group">
-      <label class="form-label">Kruti Dev Font Status</label>
-      <div style="font-size:13px;">
-        <div>Kruti Dev 010: <b style="color:${state.krutiFontsLoaded['Kruti Dev 010']?'#16a34a':'#dc2626'}">${state.krutiFontsLoaded['Kruti Dev 010']?'Loaded':'Not loaded'}</b></div>
-        <div>Kruti Dev 014: <b style="color:${state.krutiFontsLoaded['Kruti Dev 014']?'#16a34a':'#dc2626'}">${state.krutiFontsLoaded['Kruti Dev 014']?'Loaded':'Not loaded'}</b></div>
-      </div>
-      <p style="font-size:12px;color:var(--muted);margin-top:8px;">To load Kruti Dev fonts, place <code>KrutiDev010.ttf</code> and <code>KrutiDev014.ttf</code> in a <code>/fonts/</code> folder next to this HTML file, then reload.</p>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Privacy</label>
-      <p style="font-size:13px;">Your PDF is processed entirely in your browser. Nothing is uploaded to any server.</p>
-    </div>
-  `, `<button class="btn btn-primary" onclick="document.getElementById('modalBackdrop').classList.remove('active')">Close</button>`);
-});
+/* ===== TOOL BUTTONS ===== */
+document.querySelectorAll('[data-tool]').forEach(b=>b.addEventListener('click',()=>setTool(b.dataset.tool)));
 
-// Annotation canvas events
-annotationCanvas.addEventListener('pointerdown', (e) => {
-  if (state.tool === 'pencil') startDraw(e);
-  else if (state.tool === 'eraser') startAreaErase(e);
-  else if (state.tool === 'text') startTextDrag(e);
-  else if (state.tool === 'select') startSelectDrag(e);
-});
-annotationCanvas.addEventListener('pointermove', (e) => {
-  if (state.tool === 'pencil') moveDraw(e);
-  else if (state.tool === 'eraser') moveAreaErase(e);
-  else if (state.tool === 'text') moveTextDrag(e);
-  else if (state.tool === 'select') moveSelectDrag(e);
-});
-annotationCanvas.addEventListener('pointerup', (e) => {
-  if (state.tool === 'pencil') endDraw(e);
-  else if (state.tool === 'eraser') endAreaErase(e);
-  else if (state.tool === 'text') endTextDrag(e);
-  else if (state.tool === 'select') endSelectDrag(e);
-});
-annotationCanvas.addEventListener('pointercancel', (e) => {
-  if (state.tool === 'pencil') endDraw(e);
-  else if (state.tool === 'text') { state.textDrag = null; renderAnnotations(); }
-  else if (state.tool === 'select') { state.isDraggingTextEdit = false; state.selectRectDrag = null; renderAnnotations(); }
-});
-annotationCanvas.addEventListener('pointerleave', (e) => {
-  if (state.isDrawing && state.tool === 'pencil') endDraw(e);
-  if (state.isDrawing && state.tool === 'eraser') endAreaErase(e);
-});
+/* ===== PROPS PANEL ===== */
+$('psS').addEventListener('input',e=>S.pencil.sz=+e.target.value);
+$('psC').innerHTML=['#111827','#dc2626','#2563eb','#16a34a','#eab308','#9333ea','#fff'].map(c=>`<div class="sw" style="background:${c}" data-c="${c}"></div>`).join('');
+$('psC').addEventListener('click',e=>{const c=e.target.dataset.c;if(!c)return;S.pencil.c=c;$('psC').querySelectorAll('.sw').forEach(s=>s.classList.toggle('on',s.dataset.c===c))});
+$('psC').firstElementChild?.classList.add('on');
+$('hlC').innerHTML=['#fde047','#86efac','#93c5fd','#f9a8d4','#fdba74','#d8b4fe'].map(c=>`<div class="sw" style="background:${c}" data-c="${c}"></div>`).join('');
+$('hlC').addEventListener('click',e=>{const c=e.target.dataset.c;if(!c)return;S.hl.c=c;$('hlC').querySelectorAll('.sw').forEach(s=>s.classList.toggle('on',s.dataset.c===c))});
+$('hlC').firstElementChild?.classList.add('on');
+$('eM').addEventListener('change',e=>{S.eraser.mode=e.target.value;$('cc').style.display=(S.tool==='eraser'&&S.eraser.mode==='circle')?'block':'none'});
+$('eS').addEventListener('input',e=>{S.eraser.sz=+e.target.value;$('eSL').textContent=e.target.value});
 
-pdfView.addEventListener('touchstart', handleTouchStart, { passive: false });
-pdfView.addEventListener('touchmove', handleTouchMove, { passive: false });
-pdfView.addEventListener('touchend', handleTouchEnd);
+/* ===== PAGE NAV ===== */
+$('bPr').addEventListener('click',async()=>{if(S.cp>1){closeEd();hideTT();S.cp--;await renderP(S.cp)}});
+$('bNx').addEventListener('click',async()=>{if(S.cp<S.tp){closeEd();hideTT();S.cp++;await renderP(S.cp)}});
 
-document.addEventListener('keydown', (e) => {
-  if (!editorScreen.classList.contains('active')) return;
-  const mod = e.ctrlKey || e.metaKey;
-  if (mod && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
-  else if (mod && (e.key === 'Z' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redo(); }
-  else if (mod && e.key === 's') { e.preventDefault(); savePDF(); }
-  else if (e.key === 'Delete' || e.key === 'Backspace') {
-    if (state.tool === 'select' && state.selectedTextEditIdx >= 0 && !state.activeTextBox) {
-      e.preventDefault();
-      pushHistory();
-      const ann = state.annotations[state.currentPage];
-      ann.textEdits.splice(state.selectedTextEditIdx, 1);
-      state.selectedTextEditIdx = -1;
-      renderAnnotations();
-      autosave();
-      showToast('Text deleted');
-    }
-  }
-  else if (e.key === 'Escape') {
-    if (modalBackdrop.classList.contains('active')) closeModal();
-    else if (drawer.classList.contains('active')) closeDrawer();
-    else {
-      state.selectedTextEditIdx = -1;
-      renderAnnotations();
-      setTool('select');
-    }
-  }
-});
+/* ===== ZOOM ===== */
+async function setSc(s){S.sc=Math.max(.5,Math.min(4,s));$('zLb').textContent=Math.round(S.sc*100)+'%';await renderP(S.cp)}
+$('bZI').addEventListener('click',()=>setSc(S.sc+.15));
+$('bZO').addEventListener('click',()=>setSc(S.sc-.15));
+$('bFW').addEventListener('click',async()=>{if(!S.pdf)return;const pg=await S.pdf.getPage(S.cp),vp=pg.getViewport({scale:1});await setSc(($('stage').clientWidth-40)/vp.width)});
+let pnch=null;
+$('stage').addEventListener('touchstart',e=>{if(e.touches.length===2)pnch={d:Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY),s:S.sc}},{passive:true});
+$('stage').addEventListener('touchmove',e=>{if(e.touches.length===2&&pnch){const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);setSc(pnch.s*(d/pnch.d))}},{passive:true});
+$('stage').addEventListener('touchend',()=>pnch=null);
 
-pdfView.addEventListener('wheel', (e) => {
-  if (e.ctrlKey || e.metaKey) {
-    e.preventDefault();
-    const delta = e.deltaY > 0 ? -0.1 : 0.1;
-    setZoom(state.scale + delta);
-  }
-}, { passive: false });
+/* ===== UNDO/REDO ===== */
+$('bUn').addEventListener('click',undo);
+$('bRe').addEventListener('click',redo);
+document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='z'){e.preventDefault();e.shiftKey?redo():undo()}else if((e.ctrlKey||e.metaKey)&&e.key==='y'){e.preventDefault();redo()}});
 
-document.addEventListener('click', (e) => {
-  if (state.activeTextBox && !state.activeTextBox.contains(e.target) && !e.target.closest('#textEditActions')) {
-    commitTextBox();
-  }
-});
+/* ===== PAGE NUMBERS ===== */
+$('bPN').addEventListener('click',()=>$('pmM').classList.add('open'));
+$('pmC').addEventListener('click',()=>$('pmM').classList.remove('open'));
+$('pmOk').addEventListener('click',()=>{if(!S.pdf){toast('Load a PDF first');return}const pos=$('pmP').value,fmt=$('pmF').value,custom=$('pmHdrFtTxt').value.trim(),st=parseInt($('pmS').value)||1,sz=parseInt($('pmFS').value)||11,ap=$('pmA').value;const pgs=ap==='all'?Array.from({length:S.tp},(_,i)=>i+1):[S.cp];for(let i=0;i<pgs.length;i++){const a=epa(pgs[i]);a.pageNumbers=[];const tx=(custom||fmt).replace('{n}',st+i).replace('{total}',S.tp);a.pageNumbers.push({pos:pos,tx:tx,sz:sz,c:'#000'})}snap();renderA();$('pmM').classList.remove('open');toast('Header/footer text applied')});
 
-(async () => {
-  await checkKrutiFonts();
-  setTool('select');
-  updateHistoryButtons();
-  const recovered = checkAutosave();
-  if (recovered && state.pdfBytes) {
-    try {
-      await loadPDF(new Uint8Array(state.pdfBytes));
-      renderCurrentPage();
-      renderThumbnails();
-    } catch (e) { console.error(e); }
-  }
-})();
+/* ===== IMPORT ===== */
+function imp(){$('fIn').click()}
+$('bImp').addEventListener('click',imp);$('bImp2').addEventListener('click',imp);
+$('fIn').addEventListener('change',e=>{const f=e.target.files[0];if(f)loadPDF(f);e.target.value=''});
+
+/* ===== SAVE ===== */
+$('bSav').addEventListener('click',async()=>{if(!S.bytes){toast('No PDF loaded');return}toast('Generating PDF…');try{const{PDFDocument,rgb,StandardFonts}=PDFLib;const doc=await PDFDocument.load(S.bytes.slice());const pgs=doc.getPages();const fn=await doc.embedFont(StandardFonts.Helvetica);
+for(let i=0;i<pgs.length;i++){const a=S.pa.get(i+1);if(!a)continue;const pg=pgs[i],{width:w,height:h}=pg.getSize(),sc=w/(S.vp?S.vp.width:w);
+for(const e of a.erases){if(e.sh==='c')pg.drawEllipse({x:e.x*sc,y:h-e.y*sc,xScale:e.r*sc,yScale:e.r*sc,color:rgb(1,1,1)});else pg.drawRectangle({x:e.x*sc,y:h-(e.y+e.h)*sc,width:e.w*sc,height:e.h*sc,color:rgb(1,1,1)})};
+for(const hl of a.highlights){const c=h2r(hl.c);pg.drawRectangle({x:hl.x*sc,y:h-(hl.y+hl.h)*sc,width:hl.w*sc,height:hl.h*sc,color:rgb(c.r,c.g,c.b),opacity:.5})}
+for(const s of a.strokes){const c=h2r(s.c);for(let j=1;j<s.pts.length;j++){const a=s.pts[j-1],b=s.pts[j];pg.drawLine({start:{x:a.x*sc,y:h-a.y*sc},end:{x:b.x*sc,y:h-b.y*sc},thickness:s.sz*sc,color:rgb(c.r,c.g,c.b)})}}
+for(const e of a.edits){const c=h2r(e.c);try{pg.drawText(e.tx,{x:e.x*sc,y:h-(e.y+e.sz)*sc,size:e.sz*sc,font:fn,color:rgb(c.r,c.g,c.b)})}catch(err){pg.drawText(e.tx.replace(/[^\x00-\x7F]/g,'?'),{x:e.x*sc,y:h-(e.y+e.sz)*sc,size:e.sz*sc,font:fn,color:rgb(c.r,c.g,c.b)})}}
+for(const p of a.pageNumbers){let x=20,y=20;if(p.pos.startsWith('h'))y=h-p.sz-10;else y=p.sz+10;const tw=fn.widthOfTextAtSize(p.tx,p.sz);if(p.pos.endsWith('center'))x=(w-tw)/2;else if(p.pos.endsWith('right'))x=w-tw-20;pg.drawText(p.tx,{x,y,size:p.sz,font:fn,color:rgb(0,0,0)})}}
+const out=await doc.save(),bl=new Blob([out],{type:'application/pdf'}),u=URL.createObjectURL(bl),a=document.createElement('a');a.href=u;a.download='edited.pdf';a.click();URL.revokeObjectURL(u);toast('PDF saved')}catch(e){console.error(e);toast('Export failed')}});
+
+function h2r(h){const n=parseInt(h.replace('#','').padEnd(6,'0'),16);return{r:((n>>16)&255)/255,g:((n>>8)&255)/255,b:(n&255)/255}}
+
+/* ===== INIT ===== */
+populateFontDropdown(S.textStyle.font);
+$('fontTop').value=S.textStyle.font;
+setTool('select');updUR();
